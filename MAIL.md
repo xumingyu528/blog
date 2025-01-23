@@ -1,0 +1,258 @@
+---
+title: MAIL
+id: 0e5a8511-219d-4dfb-a010-c2a5fc9f48a9
+date: 2024-03-29 23:46:37
+auther: xmy
+cover: null
+excerpt: Mail Server：邮件服务 一些概念 SMTP：Simple Mail Tansfer Protocol 简单邮件传输协议 C/S架构 smtpd服务端+smtp 客户端（sendmail） smtpd 监听 25/TCP <
+permalink: /archives/mail
+categories:
+ - linux
+tags: 
+ - linux
+---
+
+## Mail Server：邮件服务
+
+一些概念
+
+*   SMTP：Simple Mail Tansfer Protocol 简单邮件传输协议
+    *   C/S架构 smtpd服务端+smtp 客户端（sendmail）
+    *   smtpd 监听 25/TCP
+
+*   ESMTP：Extended SMTP 扩展简单邮件传输协议
+
+*   POP3：Post Office Protocol v3  邮局协议
+    *   监听 110/TCP
+
+*   IMAP4：Internet Mail Access Protocol  互联网邮件访问协议
+    *   监听 143/TCP
+
+*   UUCP：Unix to Unix CoPy\
+    unix 主机复制文件的协议
+
+*   MT： mail transfer 邮件传输
+
+*   MD： mail deliver  邮件投递
+
+*   MU：邮件用户：MU mail user
+
+*   MTA：MTA mail transfer agent 邮件传输代理
+
+*   MDA：MDA mail deliver agent 邮件投递代理
+
+*   MUA：MUA mail user agent 邮件用户代理
+
+*   MRA：MRA mail Retrieval Agent 邮件检索代理
+
+*   Open Relay：开放式中继
+
+*   SASL：simple Authintication Secure Layer 简单认证安全层
+
+### 常用邮件服务器相关软件
+
+MTA：
+
+*   sendmail ：基于UUCP，单体结构，配置文件使用m4语言
+*   qmail：
+*   postfix：对sendmail兼容性好，模块化设计
+*   exim：剑桥大学开发
+*   Exchange：windows
+
+MDA
+
+*   procmail  sendmail集成此组件
+*   maildrop  安装postfix自带此组件
+
+MRA
+
+*   cyrus-imap
+*   dovecot
+
+MUA
+
+*   Outlook Express
+*   foxmail
+*   Thundermail
+*   Evolution
+*   mutt（文本界面）
+
+Webmail
+
+*   openwebmail
+*   squirrelmail
+*   extmail
+    *   EMOS
+
+SASL
+
+*   cyrus-sasl
+*   courier-authlib
+
+### 安装mail
+
+一. 安装dns、mysql\
+安装依赖环境\
+`yum -y groupinstall "Development Libraries" "Development Tools"`\
+`yum -y install db*-devel`\
+配置正反区域MX解析，安装mysql-server及mysql-devel包\
+二. 安装saslauthd\
+`yum -y install cyrus-sasl*`\
+三. 安装配置postfix\
+安装之前最好安装libssl-devel包\
+再执行下列命令输出mysql库文件\
+`echo "/usr/local/mysql/lib" >>/etc/ld.so.conf`\
+`ldconfig`
+
+    make makefiles 'CCARGS=-DHAS_MYSQL -I/usr/local/mysql/include -DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I/usr/include/sasl -DUSE_TLS' 'AUXLIBS=-L/usr/local/mysql/lib -lmysqlclient -lz -lm -L/usr/lib64/sasl2 -lsasl2 -lssl -lcrypto'
+    make
+    make install
+
+四. 启动服务\
+`postfix start`\
+查看日志\
+`tail /var/log/maillog`
+
+五. 配置postfix
+
+postfix的配置文件
+
+*   master：/etc/postfix/master.cf
+*   mail：/etc/postfix/main.cf
+
+    *   格式：参数 = 值，参数必须写在行的绝对行首，以空白开头的行被认为是上一行的延续
+    *   允许使用\$PARAMETER引用相应参数的值
+
+        myhostname = mail.xmy.com
+        myorigin = xmy.com
+        mydomain = xmy.com
+        mydestination = `$myhostname, localhost.$`mydomain, localhost, \$mydomain
+        mynetworks = 192.168.0.0/24 127.0.0.1  定义允许中继的网段
+        inet\_interface：定义postfix进程监听的IP地址
+
+六. 安装dovecot\
+`yum -y install dovecot`\
+编辑配置文件\
+`vim /etc/dovecot/dovecot.conf`\
+添加使用的协议\
+`protocols = pop3`\
+启动服务\
+`/etc/init.d/dovecot start`\
+`chkconfig dovecot on`
+
+使用telnet连接服务器110端口连接dovecot服务器\
+USER 用户名\
+PASS 密码\
+LIST   查看邮件列表
+RETR 邮件编号   查看邮件内容
+
+七. courier-mta\
+美籍俄罗斯人开发，网站www\.courier-mta.org\
+安装libtool-ltdl  libtool-ltdl-devel包\
+`yum -y install libtool-ltdl libtool-ltdl-devel`\
+解压courier包，进入目录(\为续行符)
+
+    ./configure \
+        --prefix=/usr/local/courier-authlib \
+        --sysconfdir=/etc \
+        --without-authpam \
+        --without-authshadow \
+        --without-authvchkpw \
+        --without-authpgsql \
+        --with-authmysql \
+        --with-mysql-libs=/usr/lib/mysql \
+        --with-mysql-includes=/usr/include/mysql \
+        --with-authmysqlrc=/etc/authmysqlrc \
+        --with-authdaemonrc=/etc/authdaemonrc \
+        --with-mailuser=postfix \
+        --with-mailgroup=postfix \
+        --with-ltdl-lib=/usr/lib \
+        --with-ltdl-include=/usr/include
+
+***
+
+postconf ：配置postfix
+
+*   \-d：显示默认配置
+*   \-n：显示修改了的配置
+*   \-m：显示支持的查找表类型
+*   \-A：显示支持的SASL客户端插件类型
+*   \-a：显示支持的SASL服务器端插件类型
+*   \-e：PARMATER=VALUE：更改某参数配置信息，并保存至main.cf文件中
+
+**SMTP状态码:**
+
+*   1xx：纯信息
+*   2xx：正确
+*   3xx：上一步操作尚未完成，需要继续补充
+*   4xx：暂时性错误
+*   5xx：永久性错误
+
+**SMTP --> SMTPD 报文交互过程**
+
+1.  hello
+2.  mail from 声明发件人
+3.  rcpt to 声明收件人 ，服务器验证是否接受
+4.  data  正文，以仅有一个.的空白行作为结束
+
+**SMTP协议命令**
+
+*   helo （smtp协议）
+*   ehlo （esmtp协议）
+*   mail from: <root@root.com>
+*   rcpt to:<xmy@xmy.com>
+*   data 正文
+*   Subject:主题
+*   `.`  结束符
+
+**postfix基于客户端策略**
+
+*   connection：smtpd\_client\_restrictions = 限制连接
+*   helo：smtpd\_helo\_restrictions =  限制helo报文
+*   mail from：smtpd\_sender\_restrictions = 限制发件人
+*   rcpt to：smtpd\_recipicent\_restrictions = 限制收件人，报错在此步骤显示
+*   data：smtpd\_data\_restrictions = 限制data内容
+
+`postmap /文件路径/文件   将文件转换为access(.db)格式`
+
+alias：邮件别名\
+`newaliases`
+
+postfix默认把本机的IP地址所在网段识别为本地网段，并且为之中继邮件。
+
+***
+
+**dovecot**
+
+*   支持四种协议：pop3，imap4，pops，imaps
+*   具有SASL认证能力
+
+邮箱格式：
+
+*   mbox：一个文件存储所有邮件；
+*   maildir：一个文件存储一封邮件，所有邮件存储在一个目录中；
+
+配置文件
+
+*   /etc/dovecot/dovecot.conf
+
+sasl配置文件
+
+*   /etc/rc.d/init.d/saslauthd  启动服务脚本
+*   /etc/sysconfig/saslauthd
+
+***
+
+mutt 客户端工具\
+mutt -f PROTOCOL://username\@domain.com
+---------------------------------------
+
+courier-authlib
+
+**邮件服务安全相关**
+
+*   OpenRelay：关闭中继
+*   RBL：Realtime Black List 实时黑名单(有开源及收费版本)
+*   Spamassassin ：基于perl的垃圾邮件分拣器
+*   Clamav：开源杀毒软件，很多时候作为病毒邮件服务器网关
+*   caller，呼叫器：MIMEDefang，Mailscanner，Amavisd-new 用于邮件服务器调用 垃圾邮件组件、病毒邮件组件

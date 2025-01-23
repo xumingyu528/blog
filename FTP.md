@@ -1,0 +1,77 @@
+---
+title: FTP
+id: 3eba37bc-284b-44bb-b34d-dbb0bb11cda7
+date: 2024-03-29 23:46:37
+auther: xmy
+cover: null
+excerpt: FTPFile Transfer Protocol 文件传输协议 概念 文件共享服务：工作在应用层 RPC：Remote Procedure Call，远程过程调用 能够让位于不同主机&#
+permalink: /archives/ftp
+categories:
+ - linux
+tags: 
+ - linux
+---
+
+## FTP:File Transfer Protocol 文件传输协议
+概念  
+* 文件共享服务：工作在应用层  
+* RPC：Remote Procedure Call，远程过程调用  
+    能够让位于不同主机的进程实现基于二进制数据通信  
+* NFS：Network File System网络共享服务，基于RPC
+* Samba：基于CIFS/SMB
+
+
+FTP有两个连接：  
+* 命令连接/控制连接：监听在21/tcp，用于建立连接，协商  
+* 数据连接：用于传输数据  
+    * 主动模式：20/tcp，服务器使用20端口连接客户端  
+    * 被动模式：端口随机，服务器通知一个随机数，随机数*256+20为端口号   
+
+FTP数据传输模式
+* 数据传输模式（自动模式）  
+    * 二进制  
+    * 文本  
+
+* 数据格式  
+    * 结构化数据  
+    * 半结构化数据  
+    * 非结构化数据  
+
+服务器端ftp程序
+* wu-ftpd：
+* vsftpd：Very Secure ftp Daemon 非常安全的ftp守护
+* proftpd：
+* pureftpd：
+* Serv-U
+* Filezilla
+ 
+客户端ftp程序  
+* CLI：
+    * ftp
+    * lftp
+* GUI：
+    * gftpd
+    * FlashFXP
+    * Cuteftp
+    * Filezilla
+
+vsftpd：
+基于PAM实现用户认证，支持虚拟用户
+* /etc/vsftpd：配置文件目录
+* /etc/init.d/vsftpd：服务脚本
+* /usr/sbin/vsftpd：主程序
+* /var/ftp
+
+vsftpd基于PAM实现用户认证
+* /etc/pam.d/*
+* /lib/security/*
+* /lib64/security/* 
+
+支持虚拟用户
+
+ftp用户类型：  
+* anonymous 匿名用户
+* localuser 系统用户
+* 虚拟用户  
+
+文件服务权限：文件系统权限+文件共享权限

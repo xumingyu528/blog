@@ -1,0 +1,396 @@
+---
+title: DNS域名解析
+id: 7d184023-7047-419e-9043-324b63d1d5f3
+date: 2024-03-29 23:46:37
+auther: xmy
+cover: null
+excerpt: DNS：域名解析 概念简介 DNS：Domain Name Service 域名/FQDN：Full Qualified Domain Name完全限定域名 如www.abc.com DNS软ߥ
+permalink: /archives/dnsyu-ming-jie-xi
+categories:
+ - linux
+tags: 
+ - linux
+---
+
+# DNS：域名解析
+## 概念简介
+**DNS**：*Domain Name Service*
+
+**域名/FQDN**：*Full Qualified Domain Name完全限定域名*
+    
+ 如www.abc.com
+ 
+**DNS软件-BIND**:Berkeley Internet Name Domain
+
+**DNS的作用**：名称解析，Name Resloving 即名称转换(背后有查询过程，数据库)
+ FQDN <--> IP
+ www.abc.com 192.168.0.1
+
+
+
+**nssswitch框架** 基于
+libnss_files.so 和 libnss_dns.so
+
+- file：/etc/hosts
+- dns：DNS服务
+
+**IANA**：管理FQDN的机构，负责IP、域名、AS  
+
+1.刚开始的时候通过ftp更新HOST文件；
+
+2.随着网络规模增长HOST文件更新较慢，于是建立了DNS服务器；
+
+3.再随着规模增长，建立分布式数据库
+
+**ICANN**：互联网名称与数字地址分配机构，负责IP、域名  
+
+**根域**
+
+**顶级域**：TLD(Top level Domain);
+- *组织域* ： 早期有7个，如.com、.net、.org、.gov等
+- *国家域* ：.us、.cn、.tw、.hk、.ir、.jp
+- *反向域* ： IP-->FQDN
+
+**递归查询**：
+a-->b-->c   c-->b--a
+
+**迭代查询**：
+a--b-->c  c-->a
+
+互联网中的查询分为两段，客户端到DNS服务器、DNS服务器到目的服务器
+
+**正向解析**：FQDN-->IP
+
+**反向解析**：IP-->FQDN
+
+**权威应答**：肯定答案（有TTL值）、否定答案（有TTL值）
+
+**非权威应答**：
+
+内部主机-->外部主机  
+外部主机-->内部主机  
+内部主机-->内部主机  
+
+
+**主从服务器**
+- 主DNS服务器：数据修改
+- 辅助DNS服务器：请求数据同步
+    > serial number
+
+    > refresh
+
+    > retry
+
+    > expire
+
+    > nagative answer TTL
+- 缓存DNS服务器：
+- 转发器
+
+**资源记录**：数据库中的每一个条目称作一个资源记录（Resource Record，RR）。
+资源记录的格式如下  
+- NAME:名称  
+- TTL：超时时间，可省略  
+- IN：表明此为internet上的资源记录  
+- RRT：Resource Recor Type 资源记录类型  
+- VALUE：数据  
+```
+TTL 600;
+NAME            (TTL)   IN  RRT   VALUE
+www.abc.com.            IN  A     1.1.1.1
+
+1.1.1.1                 IN  PTR   www.abc.com.
+```
+
+**资源记录类型**：  
+
+- SOA (Start Of Authority)：
+    ```  
+    ZONE NAME TTL IN SOA FQDN ADMINISTRATOR_MAILBOX(
+                serial number
+                retry
+                expire
+                na ttl )
+    
+    时间单位：M（分钟）、H（小时）、D（天）、W（周），默认单位是秒
+        
+    邮箱格式：admin@abc.com -写为->admin.abc.com
+        
+    例子
+        abc.com. 600 IN SOA ns1.abc.com. admin.abc.com. (
+        2016070701
+        1H
+        5M
+        1W
+        1D )
+    ;号为注释符号    
+    ```
+- NS(Name Server)：ZONE NAME --> FQDN
+    ```  
+    abc.com.    600 IN  NS   ns.abc.com.  
+    ns.abc.com. 600 IN  A    1.1.1.2
+    ```
+- MX(Mail eXchanger)：ZONE NAME --> FQDN
+    ```  
+    pri:优先级：0-99，数字越小级别越高
+    
+    ZONE NAME       TTL  IN  MX   pri  VALUE
+    abc.com.        600  IN  MX   10   mail.abc.com.  
+    mail.abc.com.   600  IN  A         1.1.1.3
+    ```
+- CNAME(Canonical NAME)：FQDN-->FQDN
+    ```  
+    www2.abc.com. IN CNAME www.abc.com.
+    ```
+- A(address)：FQDN-->IPv4
+- AAAA：FQDN-->IPv6
+- PTR(pointer)：IP-->FQDN
+- TXT
+- CHAOS
+- SRV
+
+**DOMAIN**：域，逻辑概念  
+    
+**ZONE**：区域，物理概念，以数据文件方式存在  
+
+
+正向区域文件：  
+A、MX只能定义在正向区域文件中
+```   
+abc.com.      IN  SOA   //开头必须为SOA记录 此格式
+
+www.abc.com.  IN  A    192.168.0.1
+
+上面一条可以简写为：
+www           IN  A    192.168.0.1  //注意后面没有句点  
+```  
+反向区域文件：  
+PTR只能定义在反向区域文件中
+```  
+0.168.192.in-addr.arpa.    IN   SOA  //开头必须为SOA记录 此格式
+
+1.0.168.192.in-addr.arpa.  IN   PTR   www.abc.com.
+
+上面一条可以简写为：
+1                          IN   PTR   www.abc.com //注意后面没有句点
+```
+
+**区域传送类型**
+
+* 完全区域传送：axfr
+
+* 增量区域传送：ixfr
+
+**区域类型**
+
+- 主区域：master
+- 从区域：slave
+- 提示区域：hint
+- 转发区域：forward
+
+
+## 搭建DNS
+bind：伯克利大学开发的DNS服务软件   
+目前由ISC机构运维 www.isc.org   
+
+**bind配置文件**：
+
+* /etc/named.conf  
+    BIND进程的工作属性  
+    区域的定义
+* /etc/rndc.key  
+    rndc：Remote Name Domain Controller  
+    密钥文件  
+    配置信息：/etc/rndc.conf  
+* /var/named/  
+    区域数据文件  
+* /etc/rc.d/init.d/named
+    启动脚本
+
+**DNS监听端口**：  
+* 53/udp  
+* 53/tcp  
+* 953/tcp   rndc(Remote Name Domain controlla)  
+
+
+yum安装bind  
+`yum install -y bind bind-utils`  
+caching-nameserver 缓存服务器  
+
+**区域定义文件格式**：
+```  
+option {
+    directory "/var/named";指定区域数据文件路径  
+    listen-on port 53 { IP地址; }
+    allow-recursion { IP/MASK; };允许递归查询的IP范围   
+    allow-query ;只允许查询的范围  
+    recursion yes|no;是否允许递归  
+    allow-transfer {  };
+        axfr;
+        ixfr;
+}
+
+主区域
+zone "ZONE NAME" IN {
+    type {master|slave|hint|forward}
+    file "区域数据文件";  
+}    
+    
+从区域：
+zone "ZONE NAME" IN {
+    type {master|slave|hint|forward}
+    file "区域数据文件";
+    masters { master1_ip; };
+}
+```
+检查配置文件命令  
+`named-checkconf`  
+`named-checkzone "区域名" /配置文件路径 `
+
+泛解析   
+`* IN RT IP `
+
+**客户端测试工具**：  
+* dig：Domain Information Gropher  
+    * -t RT(资源记录类型) 域名 {@域名服务器} //查询域名资源记录解析信息   
+    例：`dig -t NS .  //查找根域NS信息`
+    * -x IP  //根据IP查找FQDN  
+    * +[no]recurse 是否进行递归查询  
+    * +trace  跟踪解析过程  
+    例：`dig +trace -t A www.baidu.com `
+    * IXFR=xxx    增量区域传送查询，从xxx以后的变化   
+    
+* host -t RT 名称  测试域名解析命令
+* nslookup  交互式模式|命令模式
+    * 交互式模式：  
+        server IP  
+        set q=RT  
+        NAME  
+    * 命令模式  直接跟要解析的域名   
+    
+**rndc远程管理工具**  
+1.生成配置文件  
+`rndc-confgen > /etc/rndc.conf`  
+2.将注释内容复制至/etc/named.conf中  
+>在vim 中定位到注释内容相关内容第一行，末行模式使用:.,$-1w >> /etc/named.conf  
+再在/etc/named.conf中批量替换掉#号，末行模式使用:.,$s/^# //g  
+上面配置文件中定义了rndc.key相关信息及套接字信息  
+
+rndc参数  
+* -c 指定配置文件  
+* status  查看状态  
+* stop  停止named服务  
+
+
+---
+
+子域授权
+
+在父域中加入解析配置  
+正向区域：  
+SUB_ZONE_NAME   IN  NS  NSSERVER_SUB_ZONE_NAME  
+NSSERVER_SUB_ZONE_NAME  IN  A   IP
+
+例:
+```  
+xmy.com.      IN  NS ns1.xmy.com.
+ns1.xmy.com.  IN  A  192.168.184.128  
+```
+
+在子域中写入要解析的域名  
+例：
+```   
+$TTL 600
+fin.xmy.com.  IN  SOA fin.xmy.com.   admin.fin.xmy.com (
+                            2016090501
+                            1H
+                            5M
+                            2D
+                            6H
+)
+              IN  NS ns1
+ns1           IN  A  192.168.184.135  
+
+```
+
+子域转发  
+type forward;   
+forward {only|first}  only为仅转发，first为得不到答案去找根  
+forwarders { IP };  
+示例：
+```  
+在/etc/named.conf中新增转发区域
+zone "xmy.com" IN {
+    type forward;
+    forward first;
+    forwarders { 192.168.184.128 };
+}；
+```
+
+---  
+acl  定义访问控制列表  
+acl ACL_NAME { IP/MASK; }  
+例
+```   
+acl innet {
+    192.168.0.0/24;
+    172.16.0.0/16;
+};
+
+allow-query { innet; };
+    none;
+    any;
+
+
+match-clients { };  //判定客户端来源  
+```
+
+
+智能dns  bind + DLZ + mysql构建智能dns系统    
+利用acl按IP 识别不同区域客户端，分别解析到相应区域的服务器  
+cdn：Content Delivery Network  
+
+
+DNS视图：view  
+```  
+view VIEW_NAME {
+
+};
+```
+一旦定义了视图，所有视图必须定义在视图中。
+
+---
+日志系统  
+在主配置文件option{};中加入`querylog yes;`即可记录查询记录至/var/log/messages中    
+
+* channel：日志保存位置
+    syslog  
+    file：自定义保存日志信息的文件  
+* category：日志源  
+    查询  
+    区域传送  
+
+记录的日志级别及内容可以自定义  
+
+例：
+```
+logging {
+        channel querylog {
+                file "/var/log/named/bind_query.log" versions 5 size 10M;
+                severity dynamic;
+                print-time yes;
+                print-category yes;
+                print-severity yes;
+        };
+        category queries { querylog; };
+};
+
+```
+日志系统会对影响服务器处理能力  
+
+DNS压力测试工具  
+querypref  
+    -h 帮助  
+    -d 输入数据文件  
+    -s 目标服务器
+dnstop  

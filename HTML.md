@@ -1,0 +1,266 @@
+---
+title: HTML
+id: 5e88ee29-e9e6-47fd-884a-a46c71199d09
+date: 2024-03-29 10:16:02
+auther: xmy
+cover: null
+excerpt: HTML 超文本标记语言（英语：HyperText Markup Language，简称：HTML）是一种用来结构化 Web 网页及其内容的标记语言。网页内容可以是ᦂ
+permalink: /archives/html
+categories:
+ - coding
+ - qian-duan
+tags: 
+ - html
+ - web
+ - qian-duan
+---
+
+
+# HTML
+>超文本标记语言（英语：**H**yper**T**ext **M**arkup **L**anguage，简称：HTML）是一种用来结构化 Web 网页及其内容的标记语言。网页内容可以是：一组段落、一个重点信息列表、也可以含有图片和数据表。
+
+
+
+
+## 标签语法
+
+*   标签是由英文尖括号 `<` 和 `>` 括起来的
+*   html中的标签一般都是成对出现的，分开始标签和结束标签，结束标签比开始标签多了一个 `/`
+*   标签与标签之间是可以嵌套额，但先后顺序必须保持一致
+*   HTML标签不区分大小写
+
+### 标签格式
+
+一个HTML文件是有自己固定的结构的
+
+## 标签介绍
+
+### 文件标签
+
+*   `<html></html>` 根标签，所有网页标签都在根标签之中
+*   `<head></head>` 用于定义文档的头部，所有头部元素的容器，头部元素有`<title>`标题标签、`<script>`、`<style>`、`<link>`、`<meta>`等
+    *   `<meta http-equiv="Content-Type" content="text/html;charset=utf-8">`
+*   `<body></body>` 网页的主要内容，会在浏览器中显示出来
+*   `<!DOCTYPE html>`：html5中定义该文档是html文档
+
+### 文本标签
+
+*   `<hX> </hX> `    	标题标签h1\~h6
+*   `<p> </p>`			段落标签，默认样式段前段后会有空白
+*   `<br>` 分行显示文本，`<br />`是一个**空标签**，只有一个开始标签，没有结束标签，相当于文档中的回车符，html文档中是忽略回车和空格的
+    *   html4.01版本使用 `<br>`
+    *   xhtml1.0版本使用 `<br />`
+*   `&nbsp;` 空格
+*   `<hr>` 水平横线，**空标签**,默认样式线条比较粗，颜色为灰色
+    *   html4.01版本使用 `<hr>`
+    *   xhtml1.0版本使用 `<hr />`
+    *   属性
+        *   `color`：颜色，html5已废弃
+        *   `width`：宽度，html5已废弃
+        *   `size`：高度，H5已废弃
+        *   `align`：对齐方式，H5已废弃
+            *   `center` 居中
+            *   `left` 左对齐
+            *   `right` 右对齐
+*   `<b>`：字体加粗
+*   `<i>`：字体斜体
+*   `<font>`：字体标签，已过时
+    *   属性
+        *   `color`：颜色
+        *   `size`：大小
+        *   `face`：字体
+*   `<center>`：文本鞠总，已过时
+*   `<em> </em>`  强调标签，默认用斜体
+*   `<strong> </strong>` 强调标签，默认用粗体表示
+*   `<span> </span>` 没有语义，为了设置单独的样式
+*   `<q> </q>` 文本引用，表示引用别人的话，浏览器会自动加上双引号
+*   `<blockquote> </blockquote>` 长文本引用，默认采用缩进样式
+*   `<address> </address>` 地址标签，默认样式为斜体
+    *   语法：`<address>联系地址信息</address>`
+*   `<code> </code>` 单行代码标签，文章中有多行代码时不能使用
+*   `<pre> </pre>`  多行代码标签
+
+### 图片标签
+
+*   `<img>` 图片标签
+    *   语法：`<img src="图片地址" alt="下载失败时的替换文本" title = "提示文本">`
+        举例： `<img src alt="My Image" title="My Image" />`
+    *   `src` 标识图像的位置
+    *   `alt` 指定图像的描述性文本，当图像不可见时(下载不成功时)，可看到该属性指定的文本
+    *   `title` 提供在图像可见时对图像的描述(鼠标划过图片时显示的文本)
+    *   图像可以使GIF、PNG、JPEG格式的文件
+    *   其它属性
+        *   align：展示的位置
+        *   width：宽度
+        *   height：高度
+
+### 列表标签
+
+*   `<ul>` 无序列表标签
+    *   语法：
+        ```
+        <ul>
+            <li>信息</li>
+            <li>信息2</li>
+            ......
+        </ul>
+        ```
+    *   `ul-li` 在网页中默认样式为`<li>`标签前自带一个圆点
+    *   `type`属性：选择列表标识符
+*   `<ol>` 有序列表标签
+    *   语法： 
+        ```
+        <ol> 
+            <li>信息</li>
+            <li>信息2</li>
+        </ol>
+        ```
+    *   `<ol>`标签默认样式为`<li>`标签前自带序号，序号默认从`1`开始
+    *   `type`属性：选择列表标识符
+
+### 块标签
+
+*   `<div>` 分区标签，页面上相互关联的一组元素，用法：`<div>...</div>`
+    *   可以使用`id`为`<div>`标签命名，语法 `<div  id="版块名称">...</div>`
+*   `<span>`：行内标签，文本信息在一行展示
+
+### 表格标签
+
+*   `table` 表格标签
+
+    *   `<table>...</table>` 整个表格开始及结束的标记
+    *   `<tbody>...</tbody>`标签包含的内容下载完优先显示
+    *   `<tr>...</tr>` 表格的一行
+    *   `<td>...</td>` 表格的一个单元格
+    *   `<th>...</th>` 表格的头部的一个单元格，表格表头，默认样式加粗、居中显示
+    *   table表格没有添加css样式之前，在浏览器中显示是没有表格线条的
+
+    ```
+    举例：
+    <html>
+    <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>认识table表标签</title>
+    </head>
+    <body>
+    <table>
+      <tbody>
+        <tr>
+          <th>班级</th>
+          <th>学生数</th>
+          <th>平均成绩</th>
+        </tr>
+        <tr>
+          <td>一班</td>
+          <td>30</td>
+          <td>89</td>
+        </tr>
+        <tr>
+          <td>二班</td>
+          <td>35</td>
+          <td>85</td>
+        </tr>
+        <tr>
+            <td>三班</td>
+            <td>32</td>
+            <td>80</td>
+        </tr>
+      </tbody>
+    </table>
+    </body>
+    </html>
+        
+    ```
+
+    显示效果：
+
+      <table>
+        <tbody>
+          <tr>
+            <th>班级</th>
+            <th>学生数</th>
+            <th>平均成绩</th>
+          </tr>
+          <tr>
+            <td>一班</td>
+            <td>30</td>
+            <td>89</td>
+          </tr>
+          <tr>
+            <td>二班</td>
+            <td>35</td>
+            <td>85</td>
+          </tr>
+          <tr>
+              <td>三班</td>
+              <td>32</td>
+              <td>80</td>
+          </tr>
+        </tbody>
+      </table>  
+
+    *   摘要语法 `<table summary="表格摘要简介文本">`，不会显示在浏览器中
+    *   `caption` 表格标题，显示在表格上方
+        *   语法：
+            ```
+            <table>
+                <caption>标题文本</caption>
+                <tr>
+                    <td>...</td>
+                    <td>...</td>
+                    ...
+                </tr>
+            </table>
+            ```
+
+### 链接标签
+
+*   `<a>` 超链接标签
+    *   语法：`<a href="目标网址" title="鼠标划过显示的文本">链接显示的文本</a> `
+    *   默认情况下`<a>`是在当前浏览器窗口中打开的，需要使用新浏览器中打开时使用如下代码`<a href="目标网址" target="_blank">click here!</a>`
+    *   `href`属性：指定访问资源的URL
+    *   `target`属性
+        *   `_self`：默认值，在当前页面打开
+        *   `_blank`：在空白页面打开
+    *   `mailto` 链接邮件地址
+        *   用法：
+            ```
+            <a href="mailto:邮件地址?参数1&参数2&参数3&...>显示的文本</a>"
+            ```
+        *   参数关键字：
+            *   `mailto:`邮箱地址
+            *   `cc=`抄送人邮箱
+            *   `bcc=`密送人邮箱
+            *   `;`多个收件人、抄送人、密送人可以使用分好隔开
+            *   `subject=`邮件主题
+            *   `body=`邮件内容
+        *   `mailto`后面有多个参数的情况下，第一个参数必须以`?`开头，后面的参数以`&`分隔
+
+
+### 交互标签
+
+*   `<form>` 语法：`<form method="传送方式" action="服务器文件"> `
+    *   `<form>` 成对出现，以`<form>`开始，以`</form>`结束
+    *   `action` 浏览者输入的数据被传送到的地方，如一个PHP页面（save.php）
+    *   `method` 数据传送的方式（get/post/head等）
+*   `<input>` 文本输入框，语法：`<input type="text/password" name="名称" value="文本" />`
+    *   `type`
+        *   当`type="text"`时输入框为文本输入框
+        *   当`type="password"`时，输入框为密码输入框
+        *   `radio` 单选框
+        *   `checkbox` 复选框
+        *   `submit` 提交按钮，语法 `<input type="submit" value="按钮显示的文字">`
+        *   `reset` 重置按钮，语法 `<input type="reset" value="重置按钮显示的文字">`
+    *   `id`：用于标记标签
+    *   `name` 为文本框命名，以备后台程序使用
+    *   `value` 为文本输入框设置默认值
+    *   `checked` 当设置`checked="checked"`时，该选项被默认选中
+*   `<textarea>` 文本输入域，语法`<textarea rows="行数" cols="列数">文本</textarea>`
+    *   `cols` 多行输入域的列数
+    *   `rows` 多行输入域的行数
+    *   `<textarea></textarea>`标签之间可以输入默认值
+*   `<select></select>` 下拉列表框
+    *   `value` 语法 `<option value='提交值'>选项</option>`
+    *   `selected` 设置`selected="selected"` 属性时，该选项就默认被选中
+    *   `multiple` 使用`multiple="multiple"`属性时，可以实现多选功能
+*   `<label>` 标记标签，语法`<label for="控件id名称">` ，for属性中的值应当与相关控件中的id属性值相同

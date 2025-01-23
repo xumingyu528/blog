@@ -1,0 +1,793 @@
+---
+title: 编译安装lamp
+id: 9b91e57e-61dc-4898-9d1b-eefe236e1678
+date: 2024-03-29 23:46:37
+auther: xmy
+cover: null
+excerpt: LAMP：通常指linux apache mysql php的组合 一般情况下编译安装顺序：httpd–>mysql–>php–>cache httpd 版本：httpd-2.4 解决依赖关系 (1) 安装开发环境包“Development tools”
+permalink: /archives/bian-yi-an-zhuang-lamp
+categories:
+ - linux
+tags: 
+ - linux
+---
+
+LAMP：通常指linux apache mysql php的组合
+一般情况下编译安装顺序：httpd-->mysql-->php-->cache
+
+## httpd:
+
+版本：httpd-2.4
+
+1.  解决依赖关系\
+    (1) 安装开发环境包“Development tools”"Compatibility libraries" 安装pcre-devel\
+    `yum groupinstall -y "Development tools" "Compatibility libraries"`\
+    `yum install -y pcre-devel`\
+    (2)安装apr：apache  portable runtime 可移植运行库\
+    下载解压apr二进制包，解压并进入目录
+    ./configure --prefix=/usr/local/apr\
+    make && make install
+    (3)安装apr-util
+    下载解压apr-util二进制包，解压并进入目录
+    ./configure --prefix=/usr/local/apr-util --with-apr=/usr/local/apr\
+    make  && make install
+    (4)openssl升级\
+    可以使用openssl version查看版本，如果版本低编译httpd时会报错\
+    安装openssl开发库"openssl-devel"\
+    `yum -y install openssl-devel* `\
+    下载openssl二进制包，解压并进入目录
+    ./config   --prefix=/usr/local/openssl
+    make && make install
+    安装完成后替换旧版本的文件
+    mv /usr/bin/openssl /usr/bin/openssl.OFF
+    mv /usr/include/openssl /usr/include/openssl.OFF
+    ln -s /usr/local/openssl/bin/openssl /usr/bin/openssl
+    ln -s /usr/local/openssl/include/openssl /usr/include/openssl
+    ln -s /usr/local/openssl/lib/openssl /usr/lib/openssl
+    echo "/usr/local/openssl/lib">>/etc/ld.so.conf
+    ldconfig -v
+    openssl version -a
+
+2.  编译httpd\
+    下载httpd二进制包，解压并进入目录
+    ./configure --prefix=/usr/local/apache --sysconfdir=/etc/httpd --enable-so --enable-rewirte --enable-ssl --enable-cgi --enable-cgid --enable-modules=most --enable-modules-shared=most --enable-mpm-shared=all --with-apr=/usr/local/apr --with-apr-util=/usr/local/apr-util\
+    make  && make install
+
+3.  修改配置文件\
+    `vim /etc/httpd/httpd.conf`\
+    加入内容 `PidFile "/var/run/httpd.pid"`
+
+4.  配置启动脚本及加入开机列表
+    创建SysV风格启动脚本\
+    `vim /etc/rc.d/init.d/httpd`\
+    粘贴以下内容(下面脚本出自magedu教材)
+
+        #!/bin/bash
+        #
+        # httpd        Startup script for the Apache HTTP Server
+        #
+        # chkconfig: - 85 15
+        # description: Apache is a World Wide Web server.  It is used to serve \
+        #	       HTML files and CGI.
+        # processname: httpd
+        # config: /etc/httpd/conf/httpd.conf
+        # config: /etc/sysconfig/httpd
+        # pidfile: /var/run/httpd.pid
+
+        # Source function library.
+        . /etc/rc.d/init.d/functions
+
+        if [ -f /etc/sysconfig/httpd ]; then
+                . /etc/sysconfig/httpd
+        fi
+
+        # Start httpd in the C locale by default.
+        HTTPD_LANG=${HTTPD_LANG-"C"}
+
+        # This will prevent initlog from swallowing up a pass-phrase prompt if
+        # mod_ssl needs a pass-phrase from the user.
+        INITLOG_ARGS=""
+
+        # Set HTTPD=/usr/sbin/httpd.worker in /etc/sysconfig/httpd to use a server
+        # with the thread-based "worker" MPM; BE WARNED that some modules may not
+        # work correctly with a thread-based MPM; notably PHP will refuse to start.
+
+        # Path to the apachectl script, server binary, and short-form for messages.
+        apachectl=/usr/local/apache/bin/apachectl
+        httpd=${HTTPD-/usr/local/apache/bin/httpd}
+        prog=httpd
+        pidfile=${PIDFILE-/var/run/httpd.pid}
+        lockfile=${LOCKFILE-/var/lock/subsys/httpd}
+        RETVAL=0
+
+        start() {
+                echo -n $"Starting $prog: "
+                LANG=$HTTPD_LANG daemon --pidfile=${pidfile} $httpd $OPTIONS
+                RETVAL=$?
+                echo
+                [ $RETVAL = 0 ] && touch ${lockfile}
+                return $RETVAL
+        }
+
+        stop() {
+        	echo -n $"Stopping $prog: "
+        	killproc -p ${pidfile} -d 10 $httpd
+        	RETVAL=$?
+        	echo
+        	[ $RETVAL = 0 ] && rm -f ${lockfile} ${pidfile}
+        }
+        reload() {
+            echo -n $"Reloading $prog: "
+            if ! LANG=$HTTPD_LANG $httpd $OPTIONS -t >&/dev/null; then
+                RETVAL=$?
+                echo $"not reloading due to configuration syntax error"
+                failure $"not reloading $httpd due to configuration syntax error"
+            else
+                killproc -p ${pidfile} $httpd -HUP
+                RETVAL=$?
+            fi
+            echo
+        }
+
+        # See how we were called.
+        case "$1" in
+          start)
+        	start
+        	;;
+          stop)
+        	stop
+        	;;
+          status)
+                status -p ${pidfile} $httpd
+        	RETVAL=$?
+        	;;
+          restart)
+        	stop
+        	start
+        	;;
+          condrestart)
+        	if [ -f ${pidfile} ] ; then
+        		stop
+        		start
+        	fi
+        	;;
+          reload)
+                reload
+        	;;
+          graceful|help|configtest|fullstatus)
+        	$apachectl $@
+        	RETVAL=$?
+        	;;
+          *)
+        	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|graceful|help|configtest}"
+        	exit 1
+        esac
+
+        exit $RETVAL    
+
+    *注：安装目录下/bin/apachectl是 服务控制进程，脚本依赖此程序完成*\
+    为脚本添加执行权限\
+    `chmod +x /etc/rc.d/init.d/httpd`\
+    添加至服务列表，并设置默认启动级别
+
+        chkconfig --add httpd
+        chkconfig httpd on
+
+至此httpd就编译安装完成了，使用`service httpd start`来启动服务，在iptables放行80端口就可以使用IP访问默认页面了
+
+## MySQL：
+
+版本：5.5\
+mysql服务器维护了两类变量：\
+服务器变量：定义了mysql服务器运行特性          mysql>SHOW GLOBAL VARIABLES\
+状态变量：保存了mysql服务器寻星统计数据        mysql>SHOW GLOBAL STATUS
+
+1.  准备工作
+    解压指定安装目录（官方要求/usr/local/mysql）\
+    `tar zxvf 安装包  -C   解压目的地  `\
+    创建mysql数据存放目录，这里使用/mydata/data\
+    `mkdir -pv /mydata/data`\
+    创建用户mysql，修改数据存放目录属主属组
+    groupadd -r mysql
+    useradd -g mysql -r -s /sbin/nologin -M -d /mydata/data mysql
+    chown -R mysql\:mysql /mydata/data
+2.  初始化\
+    mysql目录下/scripts/mysql\_install\_db为初始化程序，可以使用参数（--help帮助）\
+    进入mysql安装目录,修改属性并执行初始化
+    chown -R mysql.mysql .
+    scripts/mysql\_install\_db --user=mysql    --datadir=/mydata/data
+3.  修改配置文件
+    拷贝配置文件到/etc/my.cnf\
+    `cp support-files/my-default.cnf /etc/my.cnf`\
+    *注：*\
+    *5.6以后版本会自动生成my.cnf在编译目录下*\
+    *mysql程序查找配置文件顺序：`/etc/my.cnf  -->  /etc/mysql/my.cnf  --> $BASEDIR/my.cnf  --> ~/.my.cnf` 按照这个顺序来找，冲突的配置以后面的为准*
+
+    配置文件格式为集中式，如下格式，修改其中的数据存放目录这里使用/mydata/data
+
+        [mysqld]
+        datadir=/mydata/data
+        socket=/var/lib/mysql/mysql.sock
+        user=mysql
+        [mysqld_safe]
+        log-error=/var/log/mysqld.log
+        pid-file=/var/run/mysqld/mysqld.pid
+4.  配置服务脚本\
+    拷贝安装目录下support-files/mysql.server    到启动脚本目录
+    cp support-files/mysql.server /etc/rc.d/init.d/mysqld
+    chmod +x /etc/rc.d/init.d/mysqld
+    加入服务列表，并配置为默认启动级别
+    chkconfig --add mysqld
+    chkconfig mysqld on
+5.  非必须步骤\
+    修改环境变量，让系统可以直接使用mysql相关命令\
+    `vim /etc/profile.d/mysql.sh`\
+    加入mysql下bin目录路径\
+    `/usr/local/mysql/bin`\
+    修改文件权限\
+    `chmod +x  /etc/profile.d/mysql.sh`
+
+    导出库文件
+
+        echo '/usr/local/mysql/lib' > /etc/ld.so.conf.d/mysql.conf
+        ldconfig -v
+
+    导出头文件
+
+        ln -sv  /usr/local/mysql/include/       /usr/include/mysql  
+
+    输出帮助手册\
+    `vim /etc/man.config`\
+    加入：MANPATH  man文件路径在mysql安装目录下man中   /mysql安装目录下man目录路径/\
+    `MANPATH /usr/local/mysql/man`
+
+## php:
+
+1.  安装依赖环境\
+    下载libmycrypt二进制包，解压进入目录
+    ./configure
+    make && make install
+    安装libxml2 bzip2-devel\
+    `yum -y install libxm2-devel bzip2-devel`
+2.  编译php
+
+    (1)和(2)二选一，两种不同运行方式
+
+    (1) 以httpd的模块方式运行
+
+        ./configure --prefix=/usr/local/php --with-mysql=/usr/local/mysql --with-openssl --with-mysqli=/usr/local/mysql/bin/mysql_config --enable-mbstring --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml  --enable-sockets --with-apxs2=/usr/local/apache/bin/apxs --with-mcrypt  --with-config-file-path=/etc --with-config-file-scan-dir=/etc/php.d --with-bz2  --enable-maintainer-zts
+        make && make install
+
+    生成配置文件\
+    `cp php.ini-production /etc/php.ini`\
+    在httpd.conf中\<IfModule mime\_module>段落加入\
+    `AddType  application/x-httpd-php  .php`
+
+    (2) 以php-fpm服务进程方式运行
+
+        ./configure --prefix=/usr/local/php --with-mysql=/usr/local/mysql --with-openssl --with-mysqli=/usr/local/mysql/bin/mysql_config --enable-mbstring --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml  --enable-sockets --enable-fpm --with-mcrypt  --with-config-file-path=/etc --with-config-file-scan-dir=/etc/php.d --with-bz2  
+        make && make install
+
+    拷贝目录下php.ini-production   到/etc/php.ini
+    `cp php.ini-production /etc/php.ini`
+    拷贝php-fpm启动脚本
+
+        cp sapi/fpm/init.d.php-fpm  /etc/rc.d/init.d/php-fpm
+        chmod +x /etc/rc.d/init.d/php-fpm
+        chkconfig --add php-fpm
+        chkconfig php-fpm on
+
+    拷贝php-fpm配置文件\
+    `cp /usr/local/php/etc/php-fpm.conf.default /usr/local/php/etc/php-fpm.conf`\
+    编辑配置文件找到以下内容修改值如下
+
+        pm.max_children = 50
+        pm.start_servers = 5
+        pm.min_spare_servers = 2
+        pm.max_spare_servers = 8
+        pid = /usr/local/php/var/run/php-fpm.pid  
+
+    下面就可以启动php-fpm服务了\
+    *注：php-fpm默认监听在9000端口*
+
+测试：在httpd站点程序目录下新建探针
+
+    <?php
+        phinfo();
+    ?>
+    <?php
+        $conn=mysql_connect('localhost','用户名','密码');
+        if ($conn)
+            echo "success";
+        else
+            echo "failure";
+    ?>
+
+## Xcache:
+
+    一种php扩展功能
+
+准备好一个扩展准备编译，大多数php扩展编译之前需要使用此命令：phpize
+
+下载xcache二进制包，解压进入目录
+
+    /usr/local/php/bin/phpize
+    ./configure --enable-xcache --with-php-config=/usr/local/php/bin/php-config
+    make && make install
+
+编辑xcache.ini并拷贝至 /etc/php.d/
+`cp xcache.ini /etc/php.d/xcache.ini`
+
+修改库文件路径zend\_extension=
+
+## web测试：
+
+```
+ab    压力测试命令：apache benchmark    
+    -c  指定并发数量  
+    -n 请求数量  
+http_load  
+webbench  
+siege
+
+利用vmstat 1 或者top一类命令观察服务器资源使用情况
+
+```
+
+***
+
+附magedu的LAMP搭建资料，很详细
+
+```
+
+httpd 2.4.4 + mysql-5.5.28 + php-5.4.13编译安装过程：
+
+一、编译安装apache
+
+1、解决依赖关系
+
+httpd-2.4.4需要较新版本的apr和apr-util，因此需要事先对其进行升级。升级方式有两种，一种是通过源代码编译安装，一种是直接升级rpm包。这里选择使用编译源代码的方式进行，它们的下载路径为ftp://172.16.0.1/pub/Sources/new_lamp。
+
+(1) 编译安装apr
+
+# tar xf apr-1.4.6.tar.bz2
+# cd apr-1.4.6
+# ./configure --prefix=/usr/local/apr
+# make && make install
+
+(2) 编译安装apr-util
+
+# tar xf apr-util-1.5.2.tar.bz2
+# cd apr-util-1.5.2
+# ./configure --prefix=/usr/local/apr-util --with-apr=/usr/local/apr
+# make && make install
+
+附：apache官方对APR的介绍：
+
+The mission of the Apache Portable Runtime (APR) project is to create and maintain software libraries that provide a predictable and consistent interface to underlying platform-specific implementations. The primary goal is to provide an API to which software developers may code and be assured of predictable if not identical behaviour regardless of the platform on which their software is built, relieving them of the need to code special-case conditions to work around or take advantage of platform-specific deficiencies or features.
+
+(3) httpd-2.4.4编译过程也要依赖于pcre-devel软件包，需要事先安装。此软件包系统光盘自带，因此，找到并安装即可。
+
+2、编译安装httpd-2.4.4
+
+首先下载httpd-2.4.4到本地，下载路径为ftp://172.16.0.1/pub/Sources/new_lamp。而后执行如下命令进行编译安装过程：
+
+# tar xf httpd-2.4.4.tar.bz2
+# cd httpd-2.4.4
+# ./configure --prefix=/usr/local/apache --sysconfdir=/etc/httpd --enable-so --enable-ssl --enable-cgi --enable-rewrite --with-zlib --with-pcre --with-apr=/usr/local/apr --with-apr-util=/usr/local/apr-util --enable-modules=most --enable-mpms-shared=most --with-mpm=event
+# make && make install
+
+
+补充：
+
+（1）构建MPM为静态模块
+在全部平台中，MPM都可以构建为静态模块。在构建时选择一种MPM，链接到服务器中。如果要改变MPM，必须重新构建。为了使用指定的MPM，请在执行configure脚本 时，使用参数 --with-mpm=NAME。NAME是指定的MPM名称。编译完成后，可以使用 ./httpd -l 来确定选择的MPM。 此命令会列出编译到服务器程序中的所有模块，包括 MPM。
+
+（2）构建 MPM 为动态模块
+
+在Unix或类似平台中，MPM可以构建为动态模块，与其它动态模块一样在运行时加载。 构建 MPM 为动态模块允许通过修改LoadModule指令内容来改变MPM，而不用重新构建服务器程序。在执行configure脚本时，使用--enable-mpms-shared选项即可启用此特性。当给出的参数为all时，所有此平台支持的MPM模块都会被安装。还可以在参数中给出模块列表。默认MPM，可以自动选择或者在执行configure脚本时通过--with-mpm选项来指定，然后出现在生成的服务器配置文件中。编辑LoadModule指令内容可以选择不同的MPM。
+
+
+3、修改httpd的主配置文件，设置其Pid文件的路径
+
+编辑/etc/httpd/httpd.conf，添加如下行即可：
+PidFile  "/var/run/httpd.pid"
+
+4、提供SysV服务脚本/etc/rc.d/init.d/httpd，内容如下：
+
+#!/bin/bash
+#
+# httpd        Startup script for the Apache HTTP Server
+#
+# chkconfig: - 85 15
+# description: Apache is a World Wide Web server.  It is used to serve \
+#	       HTML files and CGI.
+# processname: httpd
+# config: /etc/httpd/conf/httpd.conf
+# config: /etc/sysconfig/httpd
+# pidfile: /var/run/httpd.pid
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/httpd ]; then
+        . /etc/sysconfig/httpd
+fi
+
+# Start httpd in the C locale by default.
+HTTPD_LANG=${HTTPD_LANG-"C"}
+
+# This will prevent initlog from swallowing up a pass-phrase prompt if
+# mod_ssl needs a pass-phrase from the user.
+INITLOG_ARGS=""
+
+# Set HTTPD=/usr/sbin/httpd.worker in /etc/sysconfig/httpd to use a server
+# with the thread-based "worker" MPM; BE WARNED that some modules may not
+# work correctly with a thread-based MPM; notably PHP will refuse to start.
+
+# Path to the apachectl script, server binary, and short-form for messages.
+apachectl=/usr/local/apache/bin/apachectl
+httpd=${HTTPD-/usr/local/apache/bin/httpd}
+prog=httpd
+pidfile=${PIDFILE-/var/run/httpd.pid}
+lockfile=${LOCKFILE-/var/lock/subsys/httpd}
+RETVAL=0
+
+start() {
+        echo -n $"Starting $prog: "
+        LANG=$HTTPD_LANG daemon --pidfile=${pidfile} $httpd $OPTIONS
+        RETVAL=$?
+        echo
+        [ $RETVAL = 0 ] && touch ${lockfile}
+        return $RETVAL
+}
+
+stop() {
+	echo -n $"Stopping $prog: "
+	killproc -p ${pidfile} -d 10 $httpd
+	RETVAL=$?
+	echo
+	[ $RETVAL = 0 ] && rm -f ${lockfile} ${pidfile}
+}
+reload() {
+    echo -n $"Reloading $prog: "
+    if ! LANG=$HTTPD_LANG $httpd $OPTIONS -t >&/dev/null; then
+        RETVAL=$?
+        echo $"not reloading due to configuration syntax error"
+        failure $"not reloading $httpd due to configuration syntax error"
+    else
+        killproc -p ${pidfile} $httpd -HUP
+        RETVAL=$?
+    fi
+    echo
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        status -p ${pidfile} $httpd
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+	if [ -f ${pidfile} ] ; then
+		stop
+		start
+	fi
+	;;
+  reload)
+        reload
+	;;
+  graceful|help|configtest|fullstatus)
+	$apachectl $@
+	RETVAL=$?
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|graceful|help|configtest}"
+	exit 1
+esac
+
+exit $RETVAL
+
+而后为此脚本赋予执行权限：
+# chmod +x /etc/rc.d/init.d/httpd
+
+加入服务列表：
+# chkconfig --add httpd
+
+
+接下来就可以启动服务进行测试了。
+
+
+二、安装mysql-5.5.28
+
+1、准备数据存放的文件系统
+
+新建一个逻辑卷，并将其挂载至特定目录即可。这里不再给出过程。
+
+这里假设其逻辑卷的挂载目录为/mydata，而后需要创建/mydata/data目录做为mysql数据的存放目录。
+
+2、新建用户以安全方式运行进程：
+
+# groupadd -r mysql
+# useradd -g mysql -r -s /sbin/nologin -M -d /mydata/data mysql
+# chown -R mysql:mysql /mydata/data
+
+3、安装并初始化mysql-5.5.28
+
+首先下载平台对应的mysql版本至本地，这里是32位平台，因此，选择的为mysql-5.5.28-linux2.6-i686.tar.gz，其下载位置为ftp://172.16.0.1/pub/Sources/mysql-5.5。
+
+# tar xf mysql-5.5.28-linux2.6-i686.tar.gz -C /usr/local
+# cd /usr/local/
+# ln -sv mysql-5.5.28-linux2.6-i686  mysql
+# cd mysql 
+
+# chown -R mysql:mysql  .
+# scripts/mysql_install_db --user=mysql --datadir=/mydata/data
+# chown -R root  .
+
+4、为mysql提供主配置文件：
+
+# cd /usr/local/mysql
+# cp support-files/my-large.cnf  /etc/my.cnf
+
+并修改此文件中thread_concurrency的值为你的CPU个数乘以2，比如这里使用如下行：
+thread_concurrency = 2
+
+另外还需要添加如下行指定mysql数据文件的存放位置：
+datadir = /mydata/data
+
+
+5、为mysql提供sysv服务脚本：
+
+# cd /usr/local/mysql
+# cp support-files/mysql.server  /etc/rc.d/init.d/mysqld
+# chmod +x /etc/rc.d/init.d/mysqld
+
+添加至服务列表：
+# chkconfig --add mysqld
+# chkconfig mysqld on
+
+而后就可以启动服务测试使用了。
+
+
+为了使用mysql的安装符合系统使用规范，并将其开发组件导出给系统使用，这里还需要进行如下步骤：
+6、输出mysql的man手册至man命令的查找路径：
+
+编辑/etc/man.config，添加如下行即可：
+MANPATH  /usr/local/mysql/man
+
+7、输出mysql的头文件至系统头文件路径/usr/include：
+
+这可以通过简单的创建链接实现：
+# ln -sv /usr/local/mysql/include  /usr/include/mysql
+
+8、输出mysql的库文件给系统库查找路径：
+
+# echo '/usr/local/mysql/lib' > /etc/ld.so.conf.d/mysql.conf
+
+而后让系统重新载入系统库：
+# ldconfig
+
+9、修改PATH环境变量，让系统可以直接使用mysql的相关命令。具体实现过程这里不再给出。
+
+
+三、编译安装php-5.4.13
+
+1、解决依赖关系：
+
+请配置好yum源（可以是本地系统光盘）后执行如下命令：
+# yum -y groupinstall "X Software Development" 
+yum源（可以是本地系统光盘）后执行如下命令：
+# yum -y groupinstall "X Software Development" 
+
+如果想让编译的php支持mcrypt扩展，此处还需要下载ftp://172.16.0.1/pub/Sources/ngnix目录中的如下两个rpm包并安装之：
+libmcrypt-2.5.7-5.el5.i386.rpm
+libmcrypt-devel-2.5.7-5.el5.i386.rpm
+
+2、编译安装php-5.4.13
+
+首先下载源码包至本地目录，下载位置ftp://172.16.0.1/pub/Sources/new_lamp。
+
+
+/usr/local/mysql
+# tar xf php-5.4.13.tar.bz2
+# cd php-5.4.13
+# ./configure --prefix=/usr/local/php --with-mysql=/usr/local/mysql --with-openssl --with-mysqli=/usr/local/mysql/bin/mysql_config --enable-mbstring --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml  --enable-sockets --with-apxs2=/usr/local/apache/bin/apxs --with-mcrypt  --with-config-file-path=/etc --with-config-file-scan-dir=/etc/php.d --with-bz2  --enable-maintainer-zts
+
+
+说明：
+1、这里为了支持apache的worker或event这两个MPM，编译时使用了--enable-maintainer-zts选项。
+2、如果使用PHP5.3以上版本，为了链接MySQL数据库，可以指定mysqlnd，这样在本机就不需要先安装MySQL或MySQL开发包了。mysqlnd从php 5.3开始可用，可以编译时绑定到它（而不用和具体的MySQL客户端库绑定形成依赖），但从PHP 5.4开始它就是默认设置了。
+# ./configure --with-mysql=mysqlnd --with-pdo-mysql=mysqlnd --with-mysqli=mysqlnd
+
+# make
+# make test
+# make intall
+
+为php提供配置文件：
+# cp php.ini-production /etc/php.ini
+
+3、 编辑apache配置文件httpd.conf，以apache支持php
+ 
+ # vim /etc/httpd/httpd.conf
+ 1、添加如下二行
+   AddType application/x-httpd-php  .php
+   AddType application/x-httpd-php-source  .phps
+
+ 2、定位至DirectoryIndex index.html 
+   修改为：
+    DirectoryIndex  index.php  index.html
+
+而后重新启动httpd，或让其重新载入配置文件即可测试php是否已经可以正常使用。
+
+四、安装xcache，为php加速：
+
+1、安装
+# tar xf xcache-3.0.1.tar.gz
+# cd xcache-3.0.1
+# /usr/local/php/bin/phpize
+# ./configure --enable-xcache --with-php-config=/usr/local/php/bin/php-config
+# make && make install
+
+安装结束时，会出现类似如下行：
+Installing shared extensions:     /usr/local/php/lib/php/extensions/no-debug-zts-20100525/
+
+2、编辑php.ini，整合php和xcache：
+
+首先将xcache提供的样例配置导入php.ini
+# mkdir /etc/php.d
+# cp xcache.ini /etc/php.d
+
+说明：xcache.ini文件在xcache的源码目录中。
+
+接下来编辑/etc/php.d/xcache.ini，找到zend_extension开头的行，修改为如下行：
+zend_extension = /usr/local/php/lib/php/extensions/no-debug-zts-20100525/xcache.so
+
+注意：如果php.ini文件中有多条zend_extension指令行，要确保此新增的行排在第一位。
+
+五、启用服务器状态
+
+mod_status模块可以让管理员查看服务器的执行状态，它通过一个HTML页面展示了当前服务器的统计数据。这些数据通常包括但不限于：
+(1) 处于工作状态的worker进程数；
+(2) 空闲状态的worker进程数；
+(3) 每个worker的状态，包括此worker已经响应的请求数，及由此worker发送的内容的字节数；
+(4) 当前服务器总共发送的字节数；
+(5) 服务器自上次启动或重启以来至当前的时长；
+(6) 平均每秒钟响应的请求数、平均每秒钟发送的字节数、平均每个请求所请求内容的字节数；
+
+启用状态页面的方法很简单，只需要在主配置文件中添加如下内容即可：
+<Location /server-status>
+    SetHandler server-status
+    Require all granted
+</Location>
+
+需要提醒的是，这里的状态信息不应该被所有人随意访问，因此，应该限制仅允许某些特定地址的客户端查看。比如使用Require ip 172.16.0.0/16来限制仅允许指定网段的主机查看此页面。
+
+
+
+
+
+
+第二部分、配置apache-2.4.4与fpm方式的php-5.4.13
+
+一、apache、MySQL的安装与前一部分相同；请根据其进行安装；
+
+二、编译安装php-5.4.13
+
+1、解决依赖关系：
+
+请配置好yum源（可以是本地系统光盘）后执行如下命令：
+# yum -y groupinstall "X Software Development" 
+
+如果想让编译的php支持mcrypt扩展，此处还需要下载ftp://172.16.0.1/pub/Sources/ngnix目录中的如下两个rpm包并安装之：
+libmcrypt-2.5.7-5.el5.i386.rpm
+libmcrypt-devel-2.5.7-5.el5.i386.rpm
+mhash-0.9.9-1.el5.centos.i386.rpm
+mhash-devel-0.9.9-1.el5.centos.i386.rpm
+
+2、编译安装php-5.4.13
+
+首先下载源码包至本地目录，下载位置ftp://172.16.0.1/pub/Sources/new_lamp。
+
+# tar xf php-5.4.13.tar.bz2
+# cd php-5.4.13
+# ./configure --prefix=/usr/local/php --with-mysql=/usr/local/mysql --with-openssl --with-mysqli=/usr/local/mysql/bin/mysql_config --enable-mbstring --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml  --enable-sockets --enable-fpm --with-mcrypt  --with-config-file-path=/etc --with-config-file-scan-dir=/etc/php.d --with-bz2
+
+
+说明：如果使用PHP5.3以上版本，为了链接MySQL数据库，可以指定mysqlnd，这样在本机就不需要先安装MySQL或MySQL开发包了。mysqlnd从php 5.3开始可用，可以编译时绑定到它（而不用和具体的MySQL客户端库绑定形成依赖），但从PHP 5.4开始它就是默认设置了。
+# ./configure --with-mysql=mysqlnd --with-pdo-mysql=mysqlnd --with-mysqli=mysqlnd
+
+# make
+# make intall
+
+为php提供配置文件：
+# cp php.ini-production /etc/php.ini
+
+3、配置php-fpm
+ 
+为php-fpm提供Sysv init脚本，并将其添加至服务列表：
+# cp sapi/fpm/init.d.php-fpm  /etc/rc.d/init.d/php-fpm
+# chmod +x /etc/rc.d/init.d/php-fpm
+# chkconfig --add php-fpm
+# chkconfig php-fpm on
+
+为php-fpm提供配置文件：
+# cp /usr/local/php/etc/php-fpm.conf.default /usr/local/php/etc/php-fpm.conf 
+
+编辑php-fpm的配置文件：
+# vim /usr/local/php/etc/php-fpm.conf
+配置fpm的相关选项为你所需要的值，并启用pid文件（如下最后一行）：
+pm.max_children = 50
+pm.start_servers = 5
+pm.min_spare_servers = 2
+pm.max_spare_servers = 8
+pid = /usr/local/php/var/run/php-fpm.pid 
+
+接下来就可以启动php-fpm了：
+# service php-fpm start
+
+使用如下命令来验正（如果此命令输出有中几个php-fpm进程就说明启动成功了）：
+# ps aux | grep php-fpm
+
+默认情况下，fpm监听在127.0.0.1的9000端口，也可以使用如下命令验正其是否已经监听在相应的套接字。
+# netstat -tnlp | grep php-fpm
+tcp        0      0 127.0.0.1:9000              0.0.0.0:*                   LISTEN      689/php-fpm 
+
+三、配置httpd-2.4.4
+
+1、启用httpd的相关模块
+
+在Apache httpd 2.4以后已经专门有一个模块针对FastCGI的实现，此模块为mod_proxy_fcgi.so，它其实是作为mod_proxy.so模块的扩充，因此，这两个模块都要加载
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_fcgi_module modules/mod_proxy_fcgi.so
+
+
+2、配置虚拟主机支持使用fcgi
+
+在相应的虚拟主机中添加类似如下两行。
+	ProxyRequests Off
+	ProxyPassMatch ^/(.*\.php)$ fcgi://127.0.0.1:9000/PATH/TO/DOCUMENT_ROOT/$1
+
+	
+例如：
+<VirtualHost *:80>
+    DocumentRoot "/www/magedu.com"
+    ServerName magedu.com
+    ServerAlias www.magedu.com
+
+	ProxyRequests Off
+	ProxyPassMatch ^/(.*\.php)$ fcgi://127.0.0.1:9000/www/magedu.com/$1
+
+    <Directory "/www/magedu.com">
+        Options none
+        AllowOverride none
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+ProxyRequests Off：关闭正向代理
+ProxyPassMatch：把以.php结尾的文件请求发送到php-fpm进程，php-fpm至少需要知道运行的目录和URI，所以这里直接在fcgi://127.0.0.1:9000后指明了这两个参数，其它的参数的传递已经被mod_proxy_fcgi.so进行了封装，不需要手动指定。
+
+3、编辑apache配置文件httpd.conf，让apache能识别php格式的页面，并支持php格式的主页
+ 
+ # vim /etc/httpd/httpd.conf
+ 1、添加如下二行
+   AddType application/x-httpd-php  .php
+   AddType application/x-httpd-php-source  .phps
+
+ 2、定位至DirectoryIndex index.html 
+   修改为：
+    DirectoryIndex  index.php  index.html
+
+补充：Apache httpd 2.4以前的版本中，要么把PHP作为Apache的模块运行，要么添加一个第三方模块支持PHP-FPM实现。
+```

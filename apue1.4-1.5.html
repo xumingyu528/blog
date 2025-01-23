@@ -1,0 +1,58 @@
+<p style=""></p><h2 style="" id="1.4-%E7%A4%BA%E4%BE%8B">1.4 示例</h2><pre><code class="language-c">#include "apue.h"
+
+#define BUFFSIZE 4096
+
+int
+main(void)
+{
+	int n;
+	char buf[BUFFSIZE];
+
+	while ((n = read(STDIN_FILENO, buf, BUFFSIZE)) &gt; 0)
+		if (write(STDOUT_FILENO, buf, n) != n)
+			err_sys("write error");
+
+	if (n &lt; 0)
+		err_sys("read error");
+
+	exit(0);
+}
+</code></pre><p style=""></p><h3 style="" id="%E8%A7%A3%E9%87%8A">解释</h3><ul><li><p style="">STDIN_FILENO、STDOUT_FILENO 分别代表0和1，定义在&lt;unistd.h&gt;中，apue.h包含了该头文件</p></li><li><p style="">函数 open、read、write、lseek、close 都提供了不带缓冲的I/O，示例中使用了read 、write函数拷贝文件</p></li><li><p style="">n赋值为 read函数从标准输入读取的字节数，write函数写入到标准输出</p></li></ul><p style=""></p><h3 style="" id="%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C">编译运行</h3><pre><code class="language-bash">root@node02:~/cProgram# cc -o 1.4 1.4.c -lapue
+root@node02:~/cProgram# ./1.4 
+hi
+hi
+hello
+hello
+world
+world
+# 拷贝文件 input.txt 到 output.txt
+root@node02:~/cProgram# cat input.txt 
+123
+456
+78
+root@node02:~/cProgram# ./1.4 &lt; input.txt &gt; output.txt 
+root@node02:~/cProgram# cat output.txt 
+123
+456
+78</code></pre><p style=""></p><p style=""></p><h2 style="" id="1.5-%E7%A4%BA%E4%BE%8B">1.5 示例</h2><pre><code class="language-c">#include "apue.h"
+
+int
+main(void)
+{       
+        int c;
+        while ((c = getc(stdin)) != EOF)
+                if (putc(c, stdout) == EOF)
+                        err_sys("output error");
+        
+        if (ferror(stdin))
+                err_sys("input error");
+        
+        exit(0);
+}     </code></pre><p style=""></p><h3 style="" id="%E8%A7%A3%E9%87%8A-1">解释</h3><ul><li><p style="">标准I/O 函数提供了带缓冲的接口，getc、putc、fgets、printf 等</p></li><li><p style="">getc读取到输入的最后一行时，返回常量EOF</p></li></ul><h3 style="" id="%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C-1">编译运行</h3><pre><code class="language-bash">root@node02:~/cProgram# cc -o 1.5 1.5.c -lapue
+root@node02:~/cProgram# ./1.5 &gt; output.txt
+say sth
+for copy input to output
+root@node02:~/cProgram# cat output.txt 
+say sth
+for copy input to output
+</code></pre><p style=""></p>

@@ -1,0 +1,73 @@
+---
+title: SAMBA
+id: 53f6add9-00b9-4c71-95f0-1b196b3eb06b
+date: 2024-03-29 23:46:37
+auther: xmy
+cover: null
+excerpt: CIFS：Common Internet File System 通用互联网文件系统 SMB：Service Message Block 服务消息块 NetBIOS： 服务端口：udp/137 138/udp 139/tcp 445/tcp SMB启动服务 nmbd：NetBIOS smbd： yu
+permalink: /archives/samba
+categories:
+ - linux
+tags: 
+ - linux
+---
+
+
+* CIFS：Common Internet File System 通用互联网文件系统  
+* SMB：Service Message Block 服务消息块  
+* NetBIOS：  
+    服务端口：udp/137  138/udp  139/tcp 445/tcp  
+
+SMB启动服务 
+* nmbd：NetBIOS  
+* smbd：  
+
+`yum -y install samba4 samba4-client samba4-common`
+
+配置文件  
+* /etc/init.d/smb 启动脚本  
+* /etc/samba/smb.conf  
+```
+宏：变量  
+[shared_name]  共享名称
+comment = 注释
+path = 路径
+browseable =
+public = 
+read only = 只读
+writable =
+write list =
+guest ok = 来宾可见  一般为no  
+```
+testparm 测试samba设置  
+编辑配置文件-->添加系统账号  
+```
+smbpasswd  将系统用户添加为samba用户  
+    -a  添加
+    -d  删除
+
+sdbedit 
+```
+
+做为客户端smbclient  
+`smbclient -L IPADDRESS -U USERNAME`
+
+访问控制  
+* 基于iptables
+* 配置文件/etc/samba/smb.con
+    * Network-Related Options段落，host allow = IP|NETWORK  
+
+
+
+
+samba4-swat  web管理界面  
+守护进程：
+* standalone
+* transient  
+* 
+
+xinetd  超级守护进程：管理瞬时守护进程  
+配置文件路径：/etc/xinetd.d/   服务名对应配置文件名  
+`chkconfig swat on` 启动瞬时守护进程  
+`service xinetd restart`  
+    

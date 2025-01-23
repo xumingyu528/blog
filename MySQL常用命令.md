@@ -1,0 +1,273 @@
+---
+title: MySQL常用命令
+id: 25820980-a2ce-42cf-935e-df3129a5b52b
+date: 2024-03-29 23:33:18
+auther: xmy
+cover: null
+excerpt: 下面介绍部分在命令行下日常管理mysql时用到的命令。 1.连接数据库：在开始菜单-》运行中输入“cmd”打开命令窗口，执行mysql -u root -p 进入，默认密
+permalink: /archives/mysqlchang-yong-ming-ling
+categories:
+ - mysql
+tags: 
+ - mysql
+ - shu-ju-ku
+---
+
+下面介绍部分在命令行下日常管理mysql时用到的命令。
+```
+1.连接数据库：在开始菜单-》运行中输入“cmd”打开命令窗口，执行mysql -u root -p 进入，默认密码为空，直接回车即可。
+
+2.在mysql>视图执行单条命令时需要在命令后加“;”作为结束，否则会进入“>”的视图让你继续输入命令语句，在“>”视图中输入“;”开始执行命令，输入“\c”中断结束。
+
+3.退出：输入exit或者quit后回车退出mysql
+
+4.修改密码及破解密码：默认安装mysql后root用户没有密码，修改密码有多种方式：
+（1）使用set password修改:登录mysql后在mysql>视图下输入set password for 'root'@'localhost' = password('新密码');
+（2）mysqladmin：在命令提示符中输入mysqladmin -u 用户名 -p密码 password "新密码"。（注：我在修改时发现-p和密码之间不能有空格，不然会让你输入密码，使用正确密码也不行，不知道其他童鞋是不是一样）
+（3）使用update编辑用户表：登录mysql后在mysql>视图下输入use mysql;update user set password = password ('新密码')where user = 'root';flush privileges;
+（4）破解root密码：首先停止mysql服务，在命令提示符中输入net stop mysql或者在控制面板-》管理工具-》服务中停止mysql服务。之后在命令提示符中进入mysql的bin目录下以安全模式启动mysql：执行mysqld.exe --skip-grant-tables。再打开一个新cmd窗口，登录mysql使用update编辑用户表即可（参照上述修改密码方法3）。之后在重新启动mysql服务以新密码进入测试是否能够正常登录。
+    破解密码时可能会遇到mysql服务无法启动，错误1067，这时在命令提示符下进入mysql安装目录下bin目录中，执行mysqladmin -u root -p shutdown，输入修改后的密码，重新启动mysql即可。或者在任务管理器中结束mysql相关进程再重启mysql。
+（5) MySQL 5.8 以上参考此链接：https://www.cnblogs.com/huangyanqi/p/13802733.html
+    
+5.用户管理
+    创建用户
+    create user 用户名;
+    create user '用户名'@'允许登录IP范围' identified by '密码';
+    授权用户
+    grant 权限 on 数据库名 .数据表名（*表示全部，例如*.*表示所有数据库和表）to '用户名'@'主机地址' [identified by '密码'];  
+    新版本添加grant权限需要增加  WITH GRANT OPTION ;
+    []中的内容可选，例：
+    grant all on *.* to 'test'@'10.%' identified by 'test';
+    
+    grant all on *.* to 'test'@'10.%' identified by 'test' with grant option;
+    移除用户权限
+    revoke 权限 on 数据库名.数据表名 from '用户名'@'主机地址';
+    查看用户权限
+    show grants for '用户'@'主机地址' ;
+
+6.数据库、表操作  
+    查看所有数据库：show databases;
+    创建数据库：create database 数据库名;
+             create database if not exists 数据库名;
+    删除数据库：drop database 数据库名;
+            drop database if exists 数据库名;
+    进入数据库：use 数据库名;
+    查看库中所有数据表：show tables;
+    创建数据表：create table 数据表名（字段值 字段类型(数据长度),字段值 字段类型(数据长度).....）;
+        例：CREATE TABLE person (
+               number INT(11),
+       name VARCHAR(255),
+       birthday DATE
+       );
+    修改数据表名：rename table 原表名 to 新表名;
+    
+    修改表    alter table 表名 选项 ...;
+            modify
+            change
+            add
+     例：alter table students change course Course varchar(10) after name;
+    上面示例的意思是将表students中的course字段修改为Course、类型为varchar(10字节)并且放在表name的后面。
+    修改数据 insert update delete
+    
+    insert into students (Name,Gender) value ('lilei','M'),('hanmeimei','F');
+    上面示例的意思是在表students中的Name和Gender字段插入数据，一条姓名为lilei，性别M，另一条姓名hanmeimei，性别F。注：如果插入的值为数值可以不使用引号。
+    也可以不指定字段，按照字段顺序进行插入数据。
+
+    update students set Course='yuwen' where Name='liming';
+    上面的示例意思是修改表students中Course字段为yuwen，被修改的行Name是liming。
+    如果不使用where定义条件则会修改所有行的值。
+        
+    删除数据表：drop table 数据表名;
+    删除记录：delete from 表名 where 限定条件;
+    delete from students where Name='liming';
+    上面示例的意思是删除表students中Name字段值为liming的行
+
+    查看数据表字段：describe 数据表名;或者：show columns from 数据表名;
+   查询字段 select * from 表名;
+    选择：指定行 where限定条件
+    投影：指定列 动作后跟上字段名
+    例：select Name,Course from students where Course='yuwen';
+    上面示例的意思是从表students中查询字段Course为yuwen的，只显示Name和Course两个字段（即列）。
+
+
+
+    create table first_tb(id int(3),name char(10));
+    insert into first_tb values (001,’myself’);
+```
+
+常用关系型数据库可以实现的功能模型
+
+*   关系模型：（结构化数据模型）
+*   实体  关系模型
+*   对象关系模型：基于对象的数据模型
+*   版本结构化数据模型：XML（扩展标记语言） <name>Jerry</name>
+
+RDB对象：库、表、视图、用户、存储过程、存储函数、触发器、时间调度器
+
+```
+约束  
+    域约束：数据类型约束
+    外键约束：应用完整性约束  
+    主键约束：某字段能唯一标识此字段所属的实体，并且不允许为空
+    
+```
+
+数据查询和存储：
+
+*   存储管理器
+    *   权限及完整性管理器
+    *   事务管理器
+    *   文件管理器
+    *   缓冲区管理器
+*   查询管理器
+    *   DML解释器
+    *   DDL解释器
+    *   查询执行引擎
+
+关系运算：
+
+*   投影：只输出指定属性
+*   选择：只输出符合条件的行
+*   自然连接：具有相同名字的属性所有取值相同的行
+    *   笛卡尔集
+        (a+b)*(c+d)=ac+bc+ad+bd
+
+存储引擎：
+
+*   5.5.8 MyISAM 不支持事务日志，表锁
+    *   数据文件格式：
+        *   .frm：表结构
+        *   .MYD：表数据
+        *   .MYI：表索引
+*   5.5.8 InnoDB  支持事务日志，行锁
+    *   默认所有表共享一个表空间文件
+    *   建议设置每个表一个独立的表空间文件
+        *   .frm：表结构
+        *   .ibd：表空间(表数据和表索引）
+
+**mysql命令**：
+
+*   客户端命令，不需要语句结束符
+
+*   服务器端命令：需要语句结束符
+    *   ? 帮助
+    *   \c 提前结束语句
+    *   \r 重新连接mysql服务器
+    *   \d 设置语句结束符
+    *   \g 无论语句结束符是什么，直接将此语句送至服务器执行
+    *   \G 同上，而且结果以竖排方式显示
+    *   \p 显示当前正在执行的命令
+    *   \q 退出
+    *   \\! 执行shell命令，不用退出mysql
+    *   \w 语句执行结束后不显示警告信息
+    *   \W 语句执行结束后显示警告信息
+    *   \\# 对于新建的对象，支持补全功能
+
+*   服务器命令获取帮助
+    *   help KEYWORD
+
+*   命令补全
+    *   开启
+        *   rehash
+    *   关闭
+        *   \-A
+        *   \--no-auto-rehash
+        *   \--disable-auto-rehash
+
+*   输出格式，连接的时候指定参数
+    *   \--html
+    *   \--xml
+
+*   mysqladmin
+    *   用法mysqladmin \[options] command \[arg] \[command\[arg]]...
+    *   options
+        *   ping 配合-h参数查看msyql服务器在线状态
+        *   processlist 正在执行的命令进程状态
+        *   status 服务器状态
+            *   \--sleep N 显示频率，N为秒
+            *   \--count N 显示多个状态
+        *   extended-status 显示状态变量及其值
+        *   variables 显示服务器变量
+        *   flush-privileges 重读授权表
+        *   flush-host 重置主机内部信息(连接错误、dns缓存等)
+        *   flush-status 重置大多数的服务器状态变量
+        *   flush-logs 二进制和中继日志滚动
+        *   flush-threads 重启线程缓存
+        *   kill 终止线程
+        *   reload 等同于flush-privileges
+        *   refresh 相当于同时执行flush-hosts加flush-logs
+        *   shutdown 关闭mysql服务器进程
+        *   version 服务器版本及当前状态信息
+        *   start-slave 启动从服务器复制线程，一般为SQL thread 和 I/O thread
+        *   stop-slave 关闭复制
+
+*   mysqldump 备份工具
+
+*   mysqlimport 导入工具
+
+*   mysqlcheck
+
+查看mysql参数
+
+*   mysqld --help --verbose
+
+查看当前服务器支持的数据类型
+
+*   show character set;
+
+查看各个字符集下的排序规则
+
+*   show collation;
+
+**配置文件**\
+my.cnf\
+mysql配置文件读取顺序（靠后生效）：\
+`/etc/my.cnf  --> /etc/mysql/my.cnf  --> $MYSQL_MOHE/my.cnf  --> --default--extra-file=/path/to/somefile --> ~/.my.cnf`\
+mysqld --help --verbose  查看mysql配置文件支持的指令
+
+**数据类型**
+
+*   数值型
+    *   精确数值
+        *   int
+        *   decimal
+    *   近似数值
+        *   float
+        *   double
+        *   real
+*   字符型
+    *   定长：CHAR(#)、BINARY
+    *   变长：VARCHAR(#)、VARBINARY
+    *   text，blob
+    *   ENUM，SET
+*   日期时间型
+    *   date，time，datetime，timestamp
+
+域属性，修饰符：
+
+数据类型：\
+1、存入的值得类型；\
+2、占据的存储空间；\
+3、定长还是变长；\
+4、如何比较及排序；\
+5、是否能够索引
+
+**MySQL服务器变量**
+
+*   作用域
+    *   全局变量
+        *   SHOW GLOBAL VARIABLES
+    *   会话变量
+        *   SHOW \[SESSION] VARIABLES
+*   生效时间
+    *   动态：可以即时修改
+    *   静态：
+        *   写在配置文件中
+        *   通过参数传递给mysqld
+*   动态调整参数的生效方式：
+    *   全局：对当前会话无效，只对新建立会话有效
+    *   会话：即时生效，但只对当前会话有效
+*   查询变量：服务器变量：@@变量名
+    *   显示：SELECT
+    *   设定：SET GLOBAL|SESSION 变量名='value'
+    *

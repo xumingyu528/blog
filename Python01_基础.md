@@ -1,0 +1,721 @@
+---
+title: Python01_基础
+id: 90dc0a10-3d01-41db-aea2-ec7421fcc309
+date: 2024-03-30 00:07:19
+auther: xmy
+cover: null
+excerpt: 介绍 www.tiobe.com 统计编程语言使用率 1989年，Guido写的。 基于C语言 1.0版本 1994 语法 基本语法
+permalink: /archives/python01_ji-chu
+categories:
+ - coding
+tags: 
+ - python
+---
+
+## 介绍
+
+[www.tiobe.com](http://www.tiobe.com)  统计编程语言使用率
+
+1989年，Guido写的。
+基于C语言
+1.0版本  1994
+
+## 语法
+
+### 基本语法
+
+#### 变量赋值
+
+解释器会在内存中创建一个值，并将变量名指向这个值\
+`a = 1`\
+表示给a赋值为1，= 表示赋值
+
+#### 输入
+
+函数`input()`\
+`a = input()`\
+这时会将标准输入中传进来的值赋予a
+
+#### 输出
+
+函数`print()`\
+`print(a)`\
+输出a的值到标准输出
+可以输出多个内容，使用`,`隔开。\
+例如
+
+    name = jerry
+    print('hello,',name,'!')
+    输出结果为
+    hello,jerry!
+
+### 条件判断
+
+**if语句，从上往下判断，如果在一个条件判断中为True，忽略剩下的elif和else，执行该条件判断下的执行语句。**
+
+*   条件判断也可以是一个变量、函数、字符串等
+*   注意条件判断中字符串不能和数值进行比较，需要转换类型，例如int()函数可以将字符串转换为整数。
+
+    if <条件判断1>:
+    <执行1>
+    elif <条件判断2>:
+    <执行2>
+    elif <条件判断3>:
+    <执行3>
+    else <条件判断4>:
+    <执行4>
+
+### 循环
+
+#### for循环
+
+格式：`for x in [list]:`   把list中的元素代入变量x然后执行缩进块的语句
+
+*   `range(i)`函数，生成整数序列，i为整数，从0开始到i（不含i）
+*   `break` 中断循环，结合条件判断使用
+*   `continue`  跳过本次循环，结合条件判断使用
+
+#### while循环
+
+条件满足进入循环，条件不满足结束循环
+
+    while <条件判断>:
+          <执行语句>
+
+## 函数
+
+### 定义
+
+> 函数是组织好的，可重复使用的，用来实现单一，或相关联功能的代码段。
+>
+> 函数能提高应用的模块性，和代码的重复利用率。你已经知道Python提供了许多内建函数，比如print()。但你也可以自己创建函数，这被叫做用户自定义函数。
+
+### 格式
+
+* 函数代码块以 `def` 关键词开头，后接函数标识符名称和圆括号 `()`。
+    * 函数名就是标识符，命名要求与变量类似
+* 任何传入参数和自变量必须放在圆括号中间，圆括号之间可以用于定义参数。
+    * 定义函数时的参数称为形参
+    * 调用时传入的参数为实参
+* 函数的第一行语句可以选择性地使用文档字符串—用于存放函数说明。
+* 函数内容以冒号起始，并且缩进。
+    * 语句块必须缩进四个空格
+* `return [表达式]` 结束函数，选择性地返回一个值给调用方。不带表达式的return相当于返回 None。
+    * python的函数如果没有定义return语句，隐式返回一个None值
+    
+
+格式：
+```
+def 函数名(参数列表):
+    函数体(代码块)
+    [return 返回值]
+```
+
+
+### 函数参数
+#### 参数默认值
+定义函数时，可以在形参后跟一个值
+```
+def 函数名(参数1=值,参数2=值):
+    函数体
+    return 返回值
+```
+
+#### 可变参数
+形参前加`*`表示可变，一个形参可以匹配任意个参数
+
+```Python
+# 在参数名前面的*表示args是一个可变参数
+# 即在调用add函数时可以传入0个或多个参数
+def add(*args):
+    total = 0
+    for val in args:
+        total += val
+    return total
+
+
+print(add())
+print(add(1))
+print(add(1, 2))
+print(add(1, 2, 3))
+print(add(1, 3, 5, 7, 9))
+```
+
+
+
+> 如果我们导入的模块除了定义函数之外还中有可以执行代码，那么Python解释器在导入这个模块时就会执行这些代码，事实上我们可能并不希望如此，因此如果我们在模块中编写了执行代码，最好是将这些执行代码放入如下所示的条件中，这样的话除非直接运行该模块，if条件下的这些代码是不会执行的，因为只有直接执行的模块的名字才是“__main__”。
+
+
+module3.py
+```Python
+def foo():
+    pass
+
+
+def bar():
+    pass
+
+
+# __name__是Python中一个隐含的变量它代表了模块的名字
+# 只有被Python解释器直接执行的模块的名字才是__main__
+if __name__ == '__main__':
+    print('call foo()')
+    foo()
+    print('call bar()')
+    bar()
+```
+
+test.py
+```Python
+import module3
+
+# 导入module3时 不会执行模块中if条件成立时的代码 因为模块的名字是module3而不是__main__
+```
+
+
+
+### main函数
+
+> 我们可以将Python代码按照下面的格式进行书写，这一点点的改进其实就是在我们理解了函数和作用域的基础上跨出的巨大的一步
+
+```Python
+def main()
+    pass
+    
+if __name__ == '__main__':
+    main()
+```
+
+
+
+### 匿名函数
+* `lambda`表达式：单行函数，只能写在一行上，`:`用来分割参数与表达式
+    * `lambda 参数列表:表达式`
+    * 示例：`lambda x:x**2`
+
+### 调用
+* 直接使用函数名，传入参数
+* 调用时传入的参数称为实参
+* 同名函数会被覆盖
+
+```Python
+#!/usr/bin/python3
+ 
+# 定义函数
+def printme( str ):
+   # 打印任何传入的字符串
+   print (str)
+   return
+ 
+# 调用函数
+printme("我要调用用户自定义函数!")
+printme("再次调用同一函数")
+```
+以上实例输出结果：
+
+    我要调用用户自定义函数!
+    再次调用同一函数
+
+
+
+## 数据类型
+### 字符串
+`'  '`、`"  "`或`'''   '''`引用起来的文本内容
+
+*   `\`表示转义字符，例如字符串里包含了引号`""`可以使用`\"\"`来表示为它原先含义
+*   字符串是**不可变**对象
+*   使用`r`表示原本意思，例如`r"hello\n"`，其中的`\n`不会转义
+
+#### 元素访问
+*   字符串支持使用索引访问
+    str1 = 'hello python'
+    str1\[4] 字符串'o'
+*   字符串是有序集合
+*   可迭代
+
+#### 字符串join连接
+语法：\
+`"string".join(iuterable)`
+
+*   可以将迭代对象连接起来，使用string作为分隔符
+*   可迭代对象本身元素都是字符串
+*   返回一个新的字符串
+    示例：
+
+```
+lst=['1','2','3']
+print("\"".join(lst))
+1"2"3
+print(" ".join(lst))
+1 2 3
+print("\n".join(lst))
+1
+2
+3
+
+```
+
+#### 字符串`+`、`*`连接
+
+* `+`
+    ```
+    lst1 = "12"
+    lst2 = "34"
+    print(lst1+lst2)
+    1234
+    ```
+* `*`
+    ```
+    lst1 = "1234"
+    lst2 = lst1\*4
+    print(lst2)
+    1234123412341234
+    ```
+
+#### 字符串分割
+
+* split
+
+    格式：\
+    `split(sep=None,maxsplit=-1)`
+    
+    *   `sep`指定分隔符，默认使用空白分隔符
+    *   `maxsplit`指定分割次数，`-1`表示遍历
+    
+    ```Python
+    s1="I'm \ta super student."
+    s1.split()
+    ["I'm", 'a', 'super', 'student.']
+    s1.split('s')
+    ["I'm \ta ", 'uper ', 'tudent.']
+    s1.split('super')
+    ["I'm \ta ", ' student.']
+    s1.split(' ',maxsplit=1)    #指定按空格分割1次
+    ["I'm", '\ta super student.']
+    
+    ```
+* rsplit
+    与`split`方向相反，从右向左\
+    格式：\
+    `rsplit(sep=None,maxsplit=-1)`
+
+* splitlines
+    `splitlines([keepends])`
+    
+    *   按照行来切分字符串
+    *   keepends指的是是否保留行分隔符
+    *   行分隔符包括`\n`、`\r\n`、`\r`等
+    
+        'ab c\n\nde fg\rkI\r\n'.splitlines()
+        'ab c\n\nde fg\rkI\r\n'.splitlines(True)    #True表示保留行分割符
+
+* partition
+    *   `partition(sep)`
+        *   从左至右，遇到分隔符就把字符串分割成两部分，返回头、分隔符、尾三部分的三元组(tuple)，如果没有找到分隔符，就返回头、2个空元素的三元组
+        *   `sep`为分隔符，必须指定
+        ```Python
+        s1.partition('s')
+        ("I'm a ", 's', 'uper student.')
+        ```
+    *   `rpartition(sep)`：从右至左
+
+#### 字符串大小写转换
+
+*   `upper()`：全大写
+*   `lower`：全小写
+*   `swapcase()`：大小写交换
+
+```Python
+s1 = "hello"
+print(s1.upper())
+HELLO
+```
+
+#### 字符串排版
+
+*   `title()`：每个字母大写
+*   `capitalize()`：首个单词字母大写
+*   `center(width[,fillchar])`
+    *   `width`：打印宽度
+    *   `fillchar`：填充的字符
+*   `zfill(width)`：设置宽度，左边填充字符 0
+*   `ljust(width[,fillchar])`：左对齐
+*   `rjust(width[,fillchar])`：右对齐
+
+```Python
+s1 = "hello python .it's sunny today"
+s1.title()
+"Hello Python .It'S Sunny Today"
+
+s1.capitalize()
+"Hello python .it's sunny today"
+
+s1.center(50,'$')   #50个像素宽度，填充字符是 $
+"$$$$$$$$$$hello python .it's sunny today$$$$$$$$$$"
+
+s1.zfill(50)
+"00000000000000000000hello python .it's sunny today"
+
+```
+
+#### 字符串替换
+
+格式：\
+`replace(old,new[,count])`
+
+*   字符串中找到匹配字符串并替换为新字符串，返回新字符串
+*   count表示替换次数，不指定为全部替换
+
+```Python
+# 示例1
+s1 = "hello python .it's sunny today"
+s2 =  s1.replace("it's sunny today","today is a rainy day")
+print(s2)
+hello python .today is a rainy day
+
+# 示例2
+s1 = "www.abc.com"
+s2 = s1.replace("w","m",2)
+print(s2)
+mmw.abc.com
+```
+
+#### strip
+
+*   `strip([chars])`
+    *   从两端开始匹配并去除指定字符集
+    *   如果chars没有指定默认为空白字符
+
+*   `lstrip([chars])`：从左开始
+
+*   `rstrip([chars])`：从右开始
+
+```Python
+s1 = "www.abc.com  "
+# 默认去除两端的空白字符
+s1.strip()
+'www.abc.com'
+# 由于尾端m后面仍有空格，因此不会除去m
+s1.strip('m')
+'www.abc.com  '
+# 去除指定的m和空白字符
+s1.strip('m ')
+'www.abc.co'
+# 去除w字符
+s1.strip('w')
+'.abc.com  '
+# 从右边匹配字符w
+s1.rstrip('w')
+'www.abc.com  '
+# 从左边匹配m和空白字符
+s1.lstrip('m ')
+'www.abc.com  '
+```
+
+#### 字符串查找
+
+*   `find(sub[,start[,end]])`：指定的区间，从左至右，查找子串sub。找到返回索引，没有找到返回-1
+*   `rfind(sub[,start[,end]])`：从右至左
+*   `index(sub[,start[,end]])`：方法同find，返回值为异常值ValueError
+*   `rindex(sub[,start[,end]])`：
+*   `len(string)`：字符串长度
+*   `count(sub[,start[,end]])`：统计字符串中子串出现次数
+*   `startswith`
+    \# 检查字符串是否以指定的字符串开头
+    print(str1.startswith('He'))  # False
+    print(str1.startswith('hel'))  # True
+*   `endswith`
+    \# 检查字符串是否以指定的字符串结尾
+    print(str1.endswith('!'))  # True
+
+index和count时间复杂度为o(n)
+
+#### 切片
+
+```Python
+    str2 = 'abc123456'
+    # 从字符串中取出指定位置的字符(下标运算)
+    print(str2[2])  # c
+    # 字符串切片(从指定的开始索引到指定的结束索引)
+    print(str2[2:5])  # c12
+    print(str2[2:])  # c123456
+    print(str2[2::2])  # c246
+    print(str2[::2])  # ac246
+    print(str2[::-1])  # 654321cba
+    print(str2[-3:-1])  # 45    
+```
+
+#### 字符串判断，is系列
+
+```Python
+    # 检查字符串是否由数字构成
+    print(str2.isdigit())  # False
+    # 检查字符串是否以字母构成
+    print(str2.isalpha())  # False
+    # 检查字符串是否以数字和字母构成
+    print(str2.isalnum())  # True
+```
+
+#### 字符串格式化
+
+* C风格：%占位符
+    ```Python
+    >>> import math
+    >>> print('常量 PI 的值近似为：%5.3f。' % math.pi)
+    常量 PI 的值近似为：3.142。
+    ```
+* str
+`str()`：返回用户易读的字符串，如`str(1/10)`，显示为`'0.1'`
+
+* repr
+`repr()`：产生一个解释器易读的表达形式
+
+* format
+    `str.format()`格式：\
+    `"{}{xxx}".format(*args,**kwargs)`
+    
+    *   args是位置参数，是元组
+    *   kwargs是关键字参数
+    *   `{}`表示占位符，在args中给出对应占位符的值
+        *   `{:<NUM}`：可以使用`:<`+像素值让后面的参数左对齐
+        *   `{:>NUM}`：右对齐
+        *   `{:填充符号^NUM}`：居中，可以添加填充符号，默认为空格
+        *   进制：使用`int{值:d}`、`hex{值:x}`、`oct{值:o}`、`bin{值:b}`可以表示整型、16进制、8进制、二进制等等
+    
+    ```Python
+    print('{}网址： "{}!"'.format('菜鸟教程', 'www.runoob.com'))
+    菜鸟教程网址： "www.runoob.com!"
+    ```
+
+### bytes、bytearray
+
+Python3引入两个新类型
+
+#### bytes
+
+不可变字节序列
+
+#### bytearray
+
+字节数组，可变
+
+### 数值型
+
+*   整数
+*   浮点型
+*   时间型
+
+### 布尔型
+
+*   True
+*   False
+
+### 空值
+
+none  类似于C语言中的null，表示没有意义
+
+## 算数运算
+
+*   加 `+`
+*   减 `-`
+*   乘 `*`
+*   除 `/`
+    *   整除或地板除  `//`
+*   取余 %
+
+## 字符串编码
+
+### ASCII码
+
+    二进制编码与大小写字母、数字、特殊符号的对应表
+
+### Unicode
+
+    包含了多种语言文字的编码
+
+**Unicode比ASCII码多一倍存储空间，衍生出了UTF-8可变长编码。**
+
+
+## 列表list
+
+**列表是一种元素的有序组合，可以添加删除其中的元素**\
+**元素的位置从0开始依次向后排列**
+
+格式：`list[ELEMENT1,ELEMENT2,...ELEMENTn]`，`ELEMENT`为元素内容，可以使用不同数据类型
+
+*   `LISTNAME.append(ELEMENT)`追加元素，LISTNAME为list名
+*   `LISTNAME.insert(i,'ELEMENT')`插入元素至对应索引位置，i为索引号码
+*   `LISTNAME.pop(i)`删除指定索引位置元素，不指定索引表示删除末尾的元素
+*   `LISTNAME.remove(value)`从列表左侧开始，移除第一个匹配到的值
+*   `LISTNAME.clear()`清空列表
+*   `LISTNAME.reverse()`反转列表，从头到尾更换顺序
+*   `sort(key=None,reverse=False)`排序，默认升序
+    *   `reverse=true` 反转，降序
+    *   `key`是一个函数，指定key如何排序，例如可以指定`key=len`表示按字符串长度排序
+*   `VALUE in LISTNAME`判断一个值是否在list中，返回布尔值
+*   `VALUE not in LISTNAME`判断一个值是否不在list中，返回布尔值
+
+### 列表复制
+
+*   `=` 指针复制，复制出来的list指向同一块内存空间
+
+    lst0 = list(range(4))
+    lst1 = lst0
+
+*   `copy()` 完全复制，重新开辟内存空间，复制list
+
+```
+lst2 = list(range(5))
+lst3 = lst2.copy()
+
+```
+
+## 元组tuple
+
+**与list相似也是一种元素的有序组合，但++tuple不可以修改++**
+
+### 定义
+
+格式：\
+`tuple()`
+
+*   定义一个元组：`t = (1,5,4)`
+*   一个元素元组的定义：`t=(1,)`，元素后面需要加上`,`
+*   迭代方法定义：`t= tuple(range(0,10,2))`
+
+### 操作
+
+*   查询：`index(value,[start,[stop]])`
+
+*   统计匹配次数：`count(value)`，例如`t.count(1)`
+
+*   元组个数：`len(tuple)`
+
+*   元组中嵌套的列表可以修改
+
+### 命名元组namedtuple
+
+格式：
+`namedtuple(typename,field_names,verbose=False,rename=False)`
+
+使用：
+
+    # 导入方法
+    from collections import namedtuple
+    Point = namedtuple('_Point',['x','y'])
+    p = Point(11,22)
+
+**list与tuple中可以包含list与tuple**
+
+## 字典dic
+
+**dic通过`key:value`（键：值）的方式存放数据**
+
+*   初始化dic\
+    `字典名{'键1':值1,'键2':值2}`
+*   查询\
+    `字典名['键']`
+*   加入\
+    `字典名['键'] = 值`
+*   判断键是否存在\
+    `'键' in 字典名`\
+    `字典名.get('键')`
+*   删除键\
+    `字典名.pop('键')`
+
+特点：
+
+1.  查找和插入速度很快，不会随着键的增加而变慢
+2.  需要占用大量内存
+    dic通过hash算法计算键中存放的值的位置
+    dic中的键不可变
+
+## 集合set
+
+**set只存放key，且没有重复项**
+
+*   初始化set：初始化`set`需要输入一个`list`\
+    `NAME = set([LIST])`
+*   添加key\
+    `NAME.add(key)`
+*   删除key\
+    `NAME.remove(key)`
+
+## 模块
+
+> 模块是一个包含所有你定义的函数和变量的文件，其后缀名是.py。模块可以被别的程序引入，以使用该模块中的函数等功能。这也是使用 python 标准库的方法。
+
+示例：
+
+```
+#!/usr/bin/python3
+# 文件名: using_sys.py
+ 
+import sys
+ 
+print('命令行参数如下:')
+for i in sys.argv:
+   print(i)
+ 
+print('\n\nPython 路径为：', sys.path, '\n')
+
+```
+
+执行结果如下所示：
+
+    $ python using_sys.py 参数1 参数2
+    命令行参数如下:
+    using_sys.py
+    参数1
+    参数2
+
+
+    Python 路径为： ['/root', '/usr/lib/python3.4', '/usr/lib/python3.4/plat-x86_64-linux-gnu', '/usr/lib/python3.4/lib-dynload', '/usr/local/lib/python3.4/dist-packages', '/usr/lib/python3/dist-packages'] 
+
+*   1、import sys 引入 python 标准库中的 sys.py 模块；这是引入某一模块的方法。
+*   2、sys.argv 是一个包含命令行参数的列表。
+*   3、sys.path 包含了一个 Python 解释器自动查找所需模块的路径的列表。
+
+### import 语句
+
+想使用 Python 源文件，只需在另一个源文件里执行 import 语句，语法如下：
+
+    import module1[, module2[,... moduleN]
+
+*   一个模块只会被导入一次，不管你执行了多少次import。这样可以防止导入模块被一遍又一遍地执行。
+
+### from ... import 语句
+
+Python 的 from 语句让你从模块中导入一个指定的部分到当前命名空间中，语法如下：
+
+    from modname import name1[, name2[, ... nameN]]
+
+这个声明不会把整个模块导入到当前的命名空间中，它只会将`import`后面的函数引入进来。
+
+### \_\_name\_\_属性
+
+一个模块被另一个程序第一次引入时，其主程序将运行。如果我们想在模块被引入时，模块中的某一程序块不执行，我们可以用`__name__`属性来使该程序块仅在该模块自身运行时执行。
+
+    #!/usr/bin/python3
+    # Filename: using_name.py
+
+    if __name__ == '__main__':
+       print('程序自身在运行')
+    else:
+       print('我来自另一模块')
+
+运行输出如下：
+
+    $ python using_name.py
+    程序自身在运行
+
+
+
+    $ python
+    >>> import using_name
+    我来自另一模块
+    >>>
+
+**说明： 每个模块都有一个`__name__`属性，当其值是`'__main__'`时，表明该模块自身在运行，否则是被引入。**
+
+**说明：`__name__ `与 `__main__` 底下是双下划线， `_ _` 是这样去掉中间的那个空格。**
