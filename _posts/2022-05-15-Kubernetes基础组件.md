@@ -1,7 +1,5 @@
 ---
 title: Kubernetes基础组件
-id: f45f1812-5ec6-49b4-8d63-87f6ee352199
-date: 2024-03-29 13:41:45
 auther: xmy
 cover: null
 excerpt: kube-scheduler kube-scheduler 负责分配调度Pod 到集群内的节点上，它监听 kube-apiserver，查询还未分配的 Node 的 Pod，然后根据调度策略为这些 Pod 分配节点（更新 Pod 的 NodeName 字&

@@ -1,7 +1,5 @@
 ---
 title: Apache-httpd
-id: 25e7154b-9b40-4063-b2a8-18346e1171db
-date: 2024-03-29 23:46:37
 auther: xmy
 cover: null
 excerpt: NCSA组织 httpd www.apache.org httpd.apache.org httpd特性 实现创建进程 按需维持适当的进程 模块化设计，核心比较小，各种

@@ -1,7 +1,5 @@
 ---
 title: JavaScript
-id: 7cabba3c-586c-4a3d-82a0-879bf3175bba
-date: 2024-03-29 10:40:29
 auther: xmy
 cover: 
 excerpt: JavaScript JavaScript是一种网络脚本语言，用来改进设计、验证表单、检测浏览器、创建cookie等，可以插入到HTML页面中。 简介

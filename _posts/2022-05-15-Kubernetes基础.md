@@ -1,7 +1,4 @@
 ---
-title: Kubernetes基础
-id: 924a2414-9914-4ac3-a729-772f5c7f3219
-date: 2024-03-29 13:41:04
 auther: xmy
 cover: null
 excerpt: Kubernetes 架构基础 Borg Google 支撑在线业务、离线业务平台。 在线业务：Gmail、Google Docs、Web Search等业务 离线业务：时效性要求较低 &

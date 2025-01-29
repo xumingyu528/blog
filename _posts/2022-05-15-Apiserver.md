@@ -1,7 +1,5 @@
 ---
 title: Apiserver
-id: f0809f79-839c-4cbe-ab77-6d37ce2c0c4a
-date: 2024-03-29 13:41:29
 auther: xmy
 cover: null
 excerpt: API Server 概念 kube-apiserve 是 Kubernetes 最重要的核心组件之一，主要提供以下功能 集群管理的REST API接口，包括认证授权、校验及集群状态变更等 &#
