@@ -1,18 +1,4 @@
----
-title: JavaScript
-auther: xmy
-cover: 
-excerpt: JavaScript JavaScript是一种网络脚本语言，用来改进设计、验证表单、检测浏览器、创建cookie等，可以插入到HTML页面中。 简介
-permalink: /archives/javascript
-categories:
- - coding
- - qian-duan
-tags: 
- - qian-duan
- - html
- - javascript
- - js
----
+
 
 # JavaScript
 

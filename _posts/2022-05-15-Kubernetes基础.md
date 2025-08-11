@@ -1,17 +1,3 @@
----
-auther: xmy
-cover: null
-excerpt: Kubernetes 架构基础 Borg Google 支撑在线业务、离线业务平台。 在线业务：Gmail、Google Docs、Web Search等业务 离线业务：时效性要求较低 &
-permalink: /archives/kubernetesji-chu
-categories:
- - kubernetes
- - cloudnative
-tags: 
- - cloudnative
- - k8s
- - kubernetes
----
-
 
 
 # Kubernetes 架构基础

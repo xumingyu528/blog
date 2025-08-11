@@ -1,15 +1,3 @@
----
-title: Apache-httpd
-auther: xmy
-cover: null
-excerpt: NCSA组织 httpd www.apache.org httpd.apache.org httpd特性 实现创建进程 按需维持适当的进程 模块化设计，核心比较小，各种
-permalink: /archives/apache-httpd
-categories:
- - linux
-tags: 
- - web
- - linux
----
 
 
 
