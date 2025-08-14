@@ -1,4 +1,14 @@
-
+---
+title: Kubernetes 基础
+category: 
+  - Linux
+  - 云原生
+tag: 
+  - kubernetes
+  - 云原生
+  - Linux
+author: xmy
+---
 
 # Kubernetes 架构基础
 

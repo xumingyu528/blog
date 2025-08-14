@@ -1,4 +1,13 @@
-
+---
+title: JavaScript
+category: 
+  - 编程语言
+tag: 
+  - 前端技术
+  - 编程语言
+  - JavaScript
+author: xmy
+---
 
 # JavaScript
 
@@ -218,8 +227,11 @@ ECMAScript 语法
         (function(){
             //代码
         })();
+        ```
      ```
-        
+    
+     ```
+    
 3.  属性
     *   `length` : 代表形参的个数
         ```js
@@ -502,7 +514,7 @@ Browser Object Model 浏览器对象模型
         alert("hello JS");
 </script>
 ```
-    
+
 ### 确认
 
 `confirm` 消息对话框通常用于允许用户选择的动作，弹出对话框包括一个确定按钮和取消按钮\
@@ -538,7 +550,7 @@ Browser Object Model 浏览器对象模型
 </script>
 </script>
 ```
-    
+
 ### 打开新窗口
 
 `window.open`可以查找一个已经存在或者新建的浏览器窗口\
@@ -574,7 +586,7 @@ var mywin=window.open('http://www.xmy.com');
 mywin.close();
 </script>
 ```
-    
+
 ## DOM
 
 ### 概念
@@ -712,7 +724,7 @@ Object是获取的元素对象，property是元素属性。\
     mychar.style.backgroundColor ="blue";
 </script>
 ```
-    
+
 #### 显示和隐藏
 
 语法：`Object.style.display = value `\

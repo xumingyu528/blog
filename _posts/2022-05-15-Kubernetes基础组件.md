@@ -1,5 +1,13 @@
 ---
-title: Kubernetes基础组件
+title: Kubernetes基础组件01
+category: 
+  - Linux
+  - 云原生
+tag: 
+  - kubernetes
+  - 云原生
+  - Linux
+author: xmy
 
 ---
 

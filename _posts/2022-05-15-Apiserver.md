@@ -1,4 +1,14 @@
-
+---
+title: Apiserver
+category: 
+  - Linux
+  - 云原生
+tag: 
+  - kubernetes
+  - 云原生
+  - Linux
+author: xmy
+---
 
 # API Server 概念
 kube-apiserve 是 Kubernetes 最重要的核心组件之一，主要提供以下功能
